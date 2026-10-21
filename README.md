@@ -1,3 +1,7 @@
+# Website Profil SMP Muhammadiyah Kembaran
+
+Situs profil SMP Muhammadiyah Kembaran.
+
 ## Struktur Halaman
 
 Proyek ini menggunakan App Router Next.js. Setiap menu publik memiliki satu folder route dan wajib memakai nama file `page.tsx`:
