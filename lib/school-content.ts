@@ -1,0 +1,48 @@
+export type SchoolTeacher = {
+  id?: string;
+  name: string;
+  title?: string;
+  role: string;
+  photo_url?: string;
+  sort_order?: number;
+};
+
+export const HEADMASTER_NAME = 'Isti Awalia, S.Pd., M.Pd., Gr.';
+
+export const SCHOOL_VISION_CONTEXT = 'Kurikulum Operasional Sekolah disusun oleh Satuan Pendidikan untuk memungkinkan penyesuaian program pendidikan dengan kebutuhan dan potensi yang ada di sekolah. Sekolah sebagai unit penyelenggara pendidikan juga harus memperhatikan perkembangan dan tantangan masa depan, di antaranya perkembangan ilmu pengetahuan dan teknologi, globalisasi yang memungkinkan cepatnya arus perubahan dan mobilitas antar- dan lintas sektor serta tempat, era informasi, pengaruh globalisasi terhadap perubahan perilaku dan moral manusia, berubahnya kesadaran masyarakat dan orang tua terhadap pendidikan, serta era perdagangan bebas. Tantangan dan peluang itu harus direspons oleh SMP Muhammadiyah Kembaran sehingga visi sekolah diharapkan sesuai dengan arah perkembangan tersebut. Profil Pelajar Pancasila menjadi acuan dalam menyusun visi, misi, dan tujuan sekolah. Visi merupakan cita-cita bersama pada masa mendatang dari warga sekolah yang dirumuskan berdasarkan masukan seluruh warga sekolah.';
+
+export const SCHOOL_VISION = 'PASTI (Prestasi, Akhlak, Sinergi, Teknologi Inovatif).';
+
+export const SCHOOL_MISSIONS = [
+  'Menumbuhkembangkan keimanan dan ketakwaan kepada Tuhan Yang Maha Esa melalui kegiatan agama.',
+  'Mengimplementasikan Penguatan Pendidikan Karakter (PPK) dalam setiap kegiatan sekolah.',
+  'Meningkatkan pembelajaran yang kreatif, inovatif, dan menyenangkan.',
+  'Menggali dan mengembangkan potensi murid untuk mewujudkan prestasi akademik maupun nonakademik.',
+  'Menciptakan lingkungan sekolah yang bersih, aman, dan nyaman.',
+  'Menjalin kerja sama yang harmonis antarwarga sekolah dan lembaga lain yang terkait.',
+];
+
+export const DEFAULT_TEACHERS: SchoolTeacher[] = [
+  { name: 'Isti Awalia', title: 'S.Pd., M.Pd., Gr.', role: 'Kepala Sekolah', photo_url: '/img/guru/Isti%20KS.jpg' },
+  { name: 'Lina Fatimatuz Zahroh', title: 'S.Pd., Gr.', role: 'Guru' },
+  { name: 'Puspita Kursiani', title: 'S.Pd., Gr.', role: 'Guru', photo_url: '/img/guru/Puspita%20PKn.jpg' },
+  { name: 'Ikhwan Nur Rozak', title: 'S.Kom.', role: 'Guru', photo_url: '/img/guru/Ikhwan%20Informatika.jpg' },
+  { name: 'Risa Maghfiroh Aulia Ramadhani', title: 'S.Pd.', role: 'Guru', photo_url: '/img/guru/Risa%20IPA.jpg' },
+  { name: 'Al Mukmin', title: 'S.Pd.', role: 'Guru', photo_url: '/img/guru/Mukmin%20PAI%20Ismuba.jpg' },
+  { name: 'Cikita Cahya Aprilia', title: 'S.Pd.', role: 'Guru', photo_url: '/img/guru/Cikita%20Bhs%20Indo.jpg' },
+  { name: 'Desti Kristiani', title: 'A.Md.', role: 'Tata Usaha', photo_url: '/img/guru/Desti%20TU.jpg' },
+  { name: 'Nur Indah Parwitasari', title: 'S.S.', role: 'Guru' },
+  { name: 'Agung Wiratmoko', title: 'S.Sos., Gr.', role: 'Guru', photo_url: '/img/guru/Agung%20IPS.jpg' },
+];
+export const SCHOOL_VISION_CONTEXT_EN = 'The School Operational Curriculum is prepared by each education unit so that educational programs can be adapted to the needs and potential of the school. As an education provider, the school must also consider future developments and challenges, including advances in science and technology, globalization that accelerates change and mobility across sectors and places, the information era, the influence of globalization on human behavior and morals, changing awareness among communities and parents about education, and the free-trade era. SMP Muhammadiyah Kembaran must respond to these challenges and opportunities so that its vision aligns with those developments. The Pancasila Student Profile serves as the reference for formulating the school’s vision, mission, and goals. The vision is a shared aspiration for the future of the school community, formulated from the input of all school members.';
+
+export const SCHOOL_VISION_EN = 'PASTI (Achievement, Character, Synergy, Innovative Technology).';
+
+export const SCHOOL_MISSIONS_EN = [
+  'Nurturing faith and devotion to God Almighty through religious activities.',
+  'Implementing Character Education Strengthening (PPK) in every school activity.',
+  'Improving learning to be creative, innovative, and enjoyable.',
+  'Discovering and developing students’ potential to achieve both academic and non-academic excellence.',
+  'Creating a clean, safe, and comfortable school environment.',
+  'Building harmonious cooperation among the school community and related institutions.',
+];

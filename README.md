@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Struktur Halaman
 
-## Getting Started
+Proyek ini menggunakan App Router Next.js. Setiap menu publik memiliki satu folder route dan wajib memakai nama file `page.tsx`:
 
-First, run the development server:
+```text
+app/
+  page.tsx              # /
+  profil/page.tsx       # /profil
+  guru/page.tsx         # /guru
+  kesiswaan/page.tsx    # /kesiswaan
+  prestasi/page.tsx     # /prestasi
+  berita/page.tsx       # /berita
+  kontak/page.tsx       # /kontak
+  admin/                # area admin, route terpisah
+  components/           # komponen bersama, bukan halaman
+```
+
+Nama `page.tsx` tidak sebaiknya diubah menjadi `guru.tsx`, karena Next.js hanya otomatis mendaftarkan route dari file khusus bernama `page.tsx`. Struktur menu publik saat ini sudah satu folder per halaman.
+
+## Koneksi Supabase
+
+Client Supabase terpusat berada di `lib/supabase.ts`. Buat file `.env.local` di root proyek berdasarkan `.env.example`:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
+```
+
+Nilainya diambil dari Supabase Dashboard > Project Settings > API. Gunakan publishable key atau anon key untuk browser, jangan gunakan `service_role` key di `NEXT_PUBLIC_*` atau di kode frontend.
+
+Setelah mengisi env, restart server development:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Buka `http://localhost:3000`. Query Supabase sudah digunakan oleh halaman beranda, profil, guru, dan dashboard admin. Untuk membuat tabel, jalankan SQL dari `supabase/migrations/` di Supabase SQL Editor atau melalui migration workflow Supabase.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Statistik Kunjungan Realtime
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Jalankan `supabase/migrations/002_realtime_site_analytics.sql` di Supabase SQL Editor untuk mengaktifkan pencatatan kunjungan dan pembaruan Realtime. Statistik menghitung page view halaman publik, bukan pengunjung unik, dan mulai dihitung sejak migrasi ini aktif; tidak ada angka historis yang dibuat-buat. Log mentah tidak dapat dibaca oleh role publik, sementara agregat saja yang dibaca halaman Home.
 
-## Learn More
+Untuk memperbarui nama kepala sekolah pada data tersimpan, jalankan `supabase/migrations/003_update_headmaster_name.sql` di Supabase SQL Editor. Tampilan publik dan admin mengenali nama lama sambil menunggu migrasi diterapkan.
 
-To learn more about Next.js, take a look at the following resources:
+## Perintah
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run lint
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Edit halaman di folder `app/`; Next.js akan memperbarui halaman otomatis.
