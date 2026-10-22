@@ -114,9 +114,9 @@ export default function AdminDashboard() {
 
         {loadWarning && <p role="status" className="rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-100">{loadWarning}</p>}
 
-        <section className="grid grid-cols-1 gap-3">
+        <section className="grid grid-cols-1 gap-4">
           {cards.map((card) => (
-            <Link key={card.key} href={card.href} className="group flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/80 px-5 py-4 shadow-sm transition-colors duration-200 hover:border-blue-300 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:border-sky-300/30 dark:hover:bg-white/[0.07]">
+            <Link key={card.key} href={card.href} className="group flex min-h-20 items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white/90 px-6 py-5 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.06] dark:hover:border-sky-300/30 dark:hover:bg-white/[0.08]">
               <div className="flex min-w-0 items-center gap-3">
                 <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{t(card.label, card.en)}</p>
                 <span className="text-lg font-black text-blue-700 dark:text-sky-300">{card.key === 'applications' ? data.applications : card.key === 'gallery' ? data.gallery : data[card.key].length}</span>
@@ -124,15 +124,6 @@ export default function AdminDashboard() {
               <p className="shrink-0 text-xs font-semibold text-blue-600 transition-colors group-hover:text-blue-800 dark:text-sky-400 dark:group-hover:text-sky-300">{t('Kelola data', 'Manage data')}</p>
             </Link>
           ))}
-        </section>
-
-        <section className="grid grid-cols-1 gap-3">
-          <Link href="/" target="_blank" className="rounded-xl border border-slate-200/80 bg-white/75 p-4 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:border-sky-300/30 dark:hover:text-sky-300">
-            {t('Lihat layanan di Beranda', 'Preview services on homepage')}
-          </Link>
-          <Link href="/galeri/foto" target="_blank" className="rounded-xl border border-slate-200/80 bg-white/75 p-4 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:border-sky-300/30 dark:hover:text-sky-300">
-            {t('Lihat galeri publik', 'Preview public gallery')}
-          </Link>
         </section>
 
         <section className="grid grid-cols-1 gap-6">

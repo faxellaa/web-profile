@@ -81,9 +81,9 @@ export default function AdminNavbar() {
             </div>
           </Link>
 
-          <div className="hidden min-w-0 flex-1 items-center justify-start gap-1 px-2 text-xs font-semibold text-slate-700 dark:text-slate-200 xl:flex">
+          <div className="hidden min-w-0 flex-1 items-center justify-center gap-1 px-2 text-xs font-semibold text-slate-700 dark:text-slate-200 xl:flex">
             {navItems.map((item) => item.type === 'link' ? (
-              <Link key={item.href} href={item.href} className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 transition-all duration-200 active:scale-95 ${isActive(item.href) ? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}>
+              <Link key={item.href} href={item.href} className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 transition-all duration-200 active:scale-95 ${isActive(item.href) ? 'bg-blue-50/60 text-blue-700 dark:bg-slate-800/60 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}>
                 {item.label}
               </Link>
             ) : (
@@ -93,7 +93,7 @@ export default function AdminNavbar() {
                   onClick={() => setOpenSubmenu(openSubmenu === item.id ? null : item.id)}
                   aria-expanded={openSubmenu === item.id}
                   aria-controls={`admin-desktop-submenu-${item.id}`}
-                  className={`flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 transition-all duration-200 active:scale-95 ${item.links.some((link) => isActive(link.href)) ? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}
+                  className={`flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 transition-all duration-200 active:scale-95 ${item.links.some((link) => isActive(link.href)) ? 'bg-blue-50/60 text-blue-700 dark:bg-slate-800/60 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}
                 >
                   {item.label}
                   <svg aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${openSubmenu === item.id ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
