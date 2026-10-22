@@ -158,7 +158,6 @@ const carouselControl =
 export default function HomePage() {
   const { lang, t } = useLang();
 
-  const saranaScrollRef = useRef<HTMLDivElement>(null);
   const teacherScrollRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
 
@@ -291,13 +290,6 @@ export default function HomePage() {
       root.classList.remove('has-reveal');
     };
   }, []);
-
-  const scrollSarana = (direction: 'left' | 'right') => {
-    if (saranaScrollRef.current) {
-      const scrollAmount = direction === 'left' ? -360 : 360;
-      saranaScrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
 
   // Fallback jika belum diinput di admin
   const defaultEkskuls = [
@@ -517,17 +509,11 @@ export default function HomePage() {
       {/* 6. SARANA & PRASARANA */}
       <section id="sarana" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
         <SectionHead label={t('Fasilitas Sekolah','School Facilities')} title={t('Sarana & Prasarana','Facilities')} desc={t('Ruang belajar dan sarana penunjang kegiatan siswa.','Learning spaces and facilities that support student activities.')}>
-          <div className="flex items-center gap-3">
-            <Link href="/profil/sarana-prasarana" className="text-xs font-bold uppercase tracking-[0.15em] text-slate-900 underline-offset-4 hover:underline dark:text-white">
-              {t('Lihat Semua', 'View All')}
-            </Link>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => scrollSarana('left')} aria-label={t('Geser Kiri','Scroll left')} className={carouselControl}>{t('Sebelumnya', 'Previous')}</button>
-              <button type="button" onClick={() => scrollSarana('right')} aria-label={t('Geser Kanan','Scroll right')} className={carouselControl}>{t('Berikutnya', 'Next')}</button>
-            </div>
-          </div>
+          <Link href="/profil/sarana-prasarana" className="text-xs font-bold uppercase tracking-[0.15em] text-slate-900 underline-offset-4 hover:underline dark:text-white">
+            {t('Lihat Semua', 'View All')}
+          </Link>
         </SectionHead>
-        <div ref={saranaScrollRef} className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {displayFacilities.map((facility, idx) => (
             <div key={idx} className={`group min-w-72 snap-start overflow-hidden sm:min-w-80 ${glass} ${glassHover}`}>
               <div className="h-48 w-full overflow-hidden bg-slate-200 dark:bg-slate-900">
