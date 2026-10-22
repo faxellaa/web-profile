@@ -9,6 +9,46 @@ export type SchoolTeacher = {
 
 export const HEADMASTER_NAME = 'Isti Awalia, S.Pd., M.Pd., Gr.';
 
+export type SchoolFacility = {
+  id: string;
+  name: string;
+  description: string;
+  image_url: string;
+};
+
+export const DEFAULT_FACILITIES: SchoolFacility[] = [
+  {
+    id: 'classroom',
+    name: 'Ruang Kelas',
+    description: 'Ruang belajar untuk kegiatan pembelajaran sehari-hari.',
+    image_url: '/img/bahan/IMG_0658.jpeg',
+  },
+  {
+    id: 'literacy-room',
+    name: 'Ruang Literasi',
+    description: 'Area membaca dengan koleksi buku yang dapat dimanfaatkan siswa untuk belajar.',
+    image_url: '/img/bahan/IMG_0635.jpeg',
+  },
+  {
+    id: 'teachers-room',
+    name: 'Ruang Guru',
+    description: 'Ruang kerja tenaga pendidik dan kependidikan untuk menyiapkan kegiatan sekolah.',
+    image_url: '/img/bahan/IMG_0671.jpeg',
+  },
+  {
+    id: 'principal-office',
+    name: 'Ruang Kepala Sekolah',
+    description: 'Ruang kerja kepala sekolah untuk mendukung koordinasi kegiatan sekolah.',
+    image_url: '/img/bahan/IMG_0643.jpeg',
+  },
+  {
+    id: 'multimedia-room',
+    name: 'Ruang Multimedia',
+    description: 'Ruang pembelajaran yang dilengkapi layar interaktif.',
+    image_url: '/img/bahan/IMG_0645.jpeg',
+  },
+];
+
 export const SCHOOL_VISION_CONTEXT = 'Kurikulum Operasional Sekolah disusun oleh Satuan Pendidikan untuk memungkinkan penyesuaian program pendidikan dengan kebutuhan dan potensi yang ada di sekolah. Sekolah sebagai unit penyelenggara pendidikan juga harus memperhatikan perkembangan dan tantangan masa depan, di antaranya perkembangan ilmu pengetahuan dan teknologi, globalisasi yang memungkinkan cepatnya arus perubahan dan mobilitas antar- dan lintas sektor serta tempat, era informasi, pengaruh globalisasi terhadap perubahan perilaku dan moral manusia, berubahnya kesadaran masyarakat dan orang tua terhadap pendidikan, serta era perdagangan bebas. Tantangan dan peluang itu harus direspons oleh SMP Muhammadiyah Kembaran sehingga visi sekolah diharapkan sesuai dengan arah perkembangan tersebut. Profil Pelajar Pancasila menjadi acuan dalam menyusun visi, misi, dan tujuan sekolah. Visi merupakan cita-cita bersama pada masa mendatang dari warga sekolah yang dirumuskan berdasarkan masukan seluruh warga sekolah.';
 
 export const SCHOOL_VISION = 'PASTI (Prestasi, Akhlak, Sinergi, Teknologi Inovatif).';

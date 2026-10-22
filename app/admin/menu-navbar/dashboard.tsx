@@ -114,14 +114,14 @@ export default function AdminDashboard() {
 
         {loadWarning && <p role="status" className="rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-100">{loadWarning}</p>}
 
-        <section className="grid grid-cols-1 gap-4">
+        <section className="grid grid-cols-1 gap-5">
           {cards.map((card) => (
-            <Link key={card.key} href={card.href} className="group flex min-h-20 items-center justify-between gap-4 rounded-3xl border border-slate-200/80 bg-white/90 px-6 py-5 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.06] dark:hover:border-sky-300/30 dark:hover:bg-white/[0.08]">
+            <Link key={card.key} href={card.href} className="group flex min-h-40 items-center justify-between gap-5 rounded-3xl border border-slate-200/80 bg-white/90 px-8 py-8 shadow-md transition-all duration-200 hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-lg dark:border-white/10 dark:bg-white/[0.06] dark:hover:border-sky-300/30 dark:hover:bg-white/[0.08]">
               <div className="flex min-w-0 items-center gap-3">
-                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{t(card.label, card.en)}</p>
-                <span className="text-lg font-black text-blue-700 dark:text-sky-300">{card.key === 'applications' ? data.applications : card.key === 'gallery' ? data.gallery : data[card.key].length}</span>
+                <p className="text-lg font-bold text-slate-700 dark:text-slate-200">{t(card.label, card.en)}</p>
+                <span className="text-3xl font-black text-blue-700 dark:text-sky-300">{card.key === 'applications' ? data.applications : card.key === 'gallery' ? data.gallery : data[card.key].length}</span>
               </div>
-              <p className="shrink-0 text-xs font-semibold text-blue-600 transition-colors group-hover:text-blue-800 dark:text-sky-400 dark:group-hover:text-sky-300">{t('Kelola data', 'Manage data')}</p>
+              <p className="shrink-0 text-base font-semibold text-blue-600 transition-colors group-hover:text-blue-800 dark:text-sky-400 dark:group-hover:text-sky-300">{t('Kelola data', 'Manage data')}</p>
             </Link>
           ))}
         </section>

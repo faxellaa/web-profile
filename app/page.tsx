@@ -5,7 +5,7 @@ import { FileText, UserRoundPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_TEACHERS, HEADMASTER_NAME, SCHOOL_MISSIONS, SCHOOL_MISSIONS_EN, SCHOOL_VISION, SCHOOL_VISION_CONTEXT, SCHOOL_VISION_CONTEXT_EN, SCHOOL_VISION_EN, type SchoolTeacher } from '@/lib/school-content';
+import { DEFAULT_FACILITIES, DEFAULT_TEACHERS, HEADMASTER_NAME, SCHOOL_MISSIONS, SCHOOL_MISSIONS_EN, SCHOOL_VISION, SCHOOL_VISION_CONTEXT, SCHOOL_VISION_CONTEXT_EN, SCHOOL_VISION_EN, type SchoolTeacher } from '@/lib/school-content';
 import { WA_ADMIN_URL } from '@/lib/site-links';
 
 type VisitorAnalytics = {
@@ -307,20 +307,13 @@ export default function HomePage() {
     { badge: 'FS', tag: 'FUTSAL', name: 'Futsal & Olahraga', description: 'Mengasah kerja sama tim, stamina fisik, dan sportivitas.', image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=600&auto=format&fit=crop&q=80' },
   ];
 
-  const defaultFacilities = [
-    { name: 'Laboratorium Komputer', description: 'Fasilitas PC modern dan internet stabil untuk ujian CBT dan kelas TIK.', image_url: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&q=80' },
-    { name: 'Masjid & Sarana Ibadah', description: 'Tempat pembiasaan sholat berjamaah dan kajian keislaman siswa.', image_url: 'https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?w=600&auto=format&fit=crop&q=80' },
-    { name: 'Ruang Kelas Nyaman', description: 'Ruang belajar berorientasi kenyamanan dengan ventilasi udara ideal.', image_url: 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=80' },
-    { name: 'Perpustakaan & Literasi', description: 'Koleksi buku kurikulum, keislaman, fiksi ilmiah, dan ensiklopedia.', image_url: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=600&auto=format&fit=crop&q=80' },
-  ];
-
   const defaultArticles = [
     { title: 'Pelatihan Guru dalam Pemanfaatan Kurikulum AI Digital', category: 'Kabar Pendidik', date_label: 'Juli 2026', description: 'Meningkatkan kompetensi tenaga pendidik dalam integrasi media kurikulum digital berkemajuan.', image_url: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&auto=format&fit=crop&q=80' },
     { title: 'Kemah Akbar Kepanduan Hizbul Wathan Siswa Baru', category: 'Kegiatan Siswa', date_label: 'Juni 2026', description: 'Melatih ketangkasan, kemandirian, dan solidaritas sosial peserta didik di bumi perkemahan.', image_url: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?w=600&auto=format&fit=crop&q=80' },
   ];
 
   const displayEkskuls = dbEkskuls.length > 0 ? dbEkskuls : defaultEkskuls;
-  const displayFacilities = dbFacilities.length > 0 ? dbFacilities : defaultFacilities;
+  const displayFacilities = dbFacilities.length > 0 ? dbFacilities : DEFAULT_FACILITIES;
   const displayArticles = dbArticles.length > 0 ? dbArticles : defaultArticles;
   const displayTeachers = dbTeachers.length > 0 ? dbTeachers : DEFAULT_TEACHERS;
 
