@@ -6,6 +6,7 @@ import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import { uploadSchoolImage } from '@/lib/storage';
 import { getYouTubeVideoId } from '@/lib/youtube';
+import AdminFormModal from '../components/AdminFormModal';
 import AdminNavbar from '../components/navbar';
 
 type GalleryItem = {
@@ -29,6 +30,7 @@ export default function AdminGalleryPage() {
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState('');
   const [message, setMessage] = useState('');
+  const [formOpen, setFormOpen] = useState(false);
 
   const load = useCallback(async () => {
     const { data, error } = await supabase
@@ -40,9 +42,10 @@ export default function AdminGalleryPage() {
     if (error) {
       console.error('Failed to load school gallery items:', error);
       setMessage(t('Konten galeri belum dapat dimuat.', 'Gallery content could not be loaded.'));
-      return;
+      return false;
     }
     setItems(data || []);
+    return true;
   }, [t]);
 
   useEffect(() => {
@@ -106,8 +109,11 @@ export default function AdminGalleryPage() {
       setVideoUrl('');
       setFile(null);
       form.reset();
-      setMessage(t('Konten galeri berhasil ditambahkan.', 'Gallery item added successfully.'));
-      await load();
+      const refreshed = await load();
+      setMessage(refreshed
+        ? t('Konten galeri berhasil ditambahkan.', 'Gallery item added successfully.')
+        : t('Konten galeri berhasil ditambahkan, tetapi daftar belum dapat diperbarui.', 'Gallery item was added, but the list could not be refreshed.'));
+      setFormOpen(false);
     } catch (error) {
       console.error('Failed to save school gallery item:', error);
       setMessage(error instanceof Error ? error.message : t('Konten galeri belum berhasil disimpan.', 'The gallery item could not be saved.'));
@@ -144,10 +150,15 @@ export default function AdminGalleryPage() {
     <div className="min-h-screen bg-slate-50 p-3 text-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:p-6">
       <div className="mx-auto max-w-6xl space-y-7 pt-20 sm:pt-24">
         <AdminNavbar />
-        <header className="border-b border-slate-200/70 pb-5 dark:border-white/10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-sky-400">{t('Dokumentasi Sekolah', 'School Documentation')}</p>
-          <h1 className="mt-2 text-2xl font-black text-blue-950 dark:text-white sm:text-3xl">{t('Kelola Galeri', 'Manage Gallery')}</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t('Tambahkan foto dan video YouTube yang akan tampil pada halaman galeri publik.', 'Add photos and YouTube videos to the public gallery pages.')}</p>
+        <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-200/70 pb-5 dark:border-white/10 sm:flex-row sm:items-end">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-sky-400">{t('Dokumentasi Sekolah', 'School Documentation')}</p>
+            <h1 className="mt-2 text-2xl font-black text-blue-950 dark:text-white sm:text-3xl">{t('Kelola Galeri', 'Manage Gallery')}</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t('Tambahkan foto dan video YouTube yang akan tampil pada halaman galeri publik.', 'Add photos and YouTube videos to the public gallery pages.')}</p>
+          </div>
+          <button type="button" onClick={() => { setMessage(''); setFormOpen(true); }} className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-800">
+            {t('Tambah konten', 'Add content')}
+          </button>
         </header>
 
         {message && <p role="status" className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200">{message}</p>}
@@ -155,9 +166,33 @@ export default function AdminGalleryPage() {
         {loading ? (
           <div className="admin-loading" role="status"><span>{t('Memuat galeri…', 'Loading gallery…')}</span></div>
         ) : (
-          <div className="grid items-start gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-            <form onSubmit={save} className="space-y-4 rounded-2xl border border-slate-200/80 bg-white/85 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-7">
-              <h2 className="text-lg font-black text-slate-950 dark:text-white">{t('Tambah konten', 'Add content')}</h2>
+          <section className="rounded-2xl border border-slate-200/80 bg-white/85 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-7">
+            <h2 className="text-lg font-black text-slate-950 dark:text-white">{t('Konten yang dikelola', 'Managed content')} ({items.length})</h2>
+            <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{t('Foto bawaan website tetap tampil. Item di bawah adalah foto/video yang ditambahkan dari admin.', 'Existing site photos remain visible. Items below are photos/videos added through admin.')}</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {items.map((item) => (
+                <article key={item.id} className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/10">
+                  {item.media_type === 'photo' && <img src={item.media_url} alt="" className="aspect-video w-full bg-slate-100 object-cover dark:bg-slate-900" />}
+                  <div className="flex items-start justify-between gap-3 p-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-sky-300">{item.media_type === 'photo' ? t('Foto', 'Photo') : t('Video', 'Video')}</p>
+                      <h3 className="mt-1 break-words text-sm font-bold">{item.title}</h3>
+                      {item.media_type === 'video' && <a href={item.media_url} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-slate-500 underline dark:text-slate-400">{item.media_url}</a>}
+                    </div>
+                    <button type="button" disabled={busyId === item.id} onClick={() => void remove(item)} className="min-h-10 shrink-0 rounded-lg px-3 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-400/10">
+                      {t('Hapus', 'Delete')}
+                    </button>
+                  </div>
+                </article>
+              ))}
+              {items.length === 0 && <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 sm:col-span-2">{t('Belum ada konten tambahan.', 'No additional content yet.')}</p>}
+            </div>
+          </section>
+        )}
+
+        <AdminFormModal open={formOpen} title={t('Tambah konten', 'Add content')} onClose={() => setFormOpen(false)}>
+            <form onSubmit={save} className="space-y-4">
+              {message && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-950/40 dark:text-red-300">{message}</p>}
               <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                 {t('Jenis konten', 'Content type')}
                 <select value={mediaType} onChange={(event) => setMediaType(event.target.value as 'photo' | 'video')} className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-sm text-slate-900 dark:border-white/15 dark:bg-slate-950 dark:text-white">
@@ -185,31 +220,7 @@ export default function AdminGalleryPage() {
                 {saving ? t('Menyimpan…', 'Saving…') : t('Tambahkan ke galeri', 'Add to gallery')}
               </button>
             </form>
-
-            <section className="rounded-2xl border border-slate-200/80 bg-white/85 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-7">
-              <h2 className="text-lg font-black text-slate-950 dark:text-white">{t('Konten yang dikelola', 'Managed content')} ({items.length})</h2>
-              <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{t('Foto bawaan website tetap tampil. Item di bawah adalah foto/video yang ditambahkan dari admin.', 'Existing site photos remain visible. Items below are photos/videos added through admin.')}</p>
-              <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                {items.map((item) => (
-                  <article key={item.id} className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/10">
-                    {item.media_type === 'photo' && <img src={item.media_url} alt="" className="aspect-video w-full bg-slate-100 object-cover dark:bg-slate-900" />}
-                    <div className="flex items-start justify-between gap-3 p-3">
-                      <div className="min-w-0">
-                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-sky-300">{item.media_type === 'photo' ? t('Foto', 'Photo') : t('Video', 'Video')}</p>
-                        <h3 className="mt-1 break-words text-sm font-bold">{item.title}</h3>
-                        {item.media_type === 'video' && <a href={item.media_url} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-slate-500 underline dark:text-slate-400">{item.media_url}</a>}
-                      </div>
-                      <button type="button" disabled={busyId === item.id} onClick={() => void remove(item)} className="min-h-10 shrink-0 rounded-lg px-3 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-400/10">
-                        {t('Hapus', 'Delete')}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-                {items.length === 0 && <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 sm:col-span-2">{t('Belum ada konten tambahan.', 'No additional content yet.')}</p>}
-              </div>
-            </section>
-          </div>
-        )}
+        </AdminFormModal>
       </div>
     </div>
   );

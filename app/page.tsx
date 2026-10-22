@@ -10,9 +10,7 @@ import { WA_ADMIN_URL } from '@/lib/site-links';
 
 type VisitorAnalytics = {
   total_visits: number;
-  monthly_visits: number;
   today_visits: number;
-  monthly_trend: Record<string, number> | null;
 };
 
 type HomeArticle = {
@@ -37,17 +35,32 @@ type HomeFacility = {
   image_url?: string;
 };
 
-const visitorMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-
 const toVisitorStats = (record: VisitorAnalytics) => ({
   total: Number(record.total_visits || 0),
-  thisMonth: Number(record.monthly_visits || 0),
   today: Number(record.today_visits || 0),
-  monthlyTrend: visitorMonths.map((month, index) => ({
-    month,
-    count: Number(record.monthly_trend?.[String(index + 1).padStart(2, '0')] || 0),
-  })),
 });
+
+const getLastSevenDays = (locale: string) => {
+  const todayParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const parts = Object.fromEntries(todayParts.map(({ type, value }) => [type, value]));
+  const today = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day)));
+  const labelFormatter = new Intl.DateTimeFormat(locale === 'en' ? 'en-US' : 'id-ID', {
+    timeZone: 'UTC',
+    day: 'numeric',
+    month: 'short',
+  });
+
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(today);
+    date.setUTCDate(today.getUTCDate() - 6 + index);
+    return { date: date.toISOString().slice(0, 10), label: labelFormatter.format(date) };
+  });
+};
 
 const PRESTASI_PREVIEW = [
   'WhatsApp Image 2026-10-11 at 16.15.26.jpeg',
@@ -164,17 +177,17 @@ export default function HomePage() {
   // Starts empty so demo values are never presented as real traffic.
   const [visitorStats, setVisitorStats] = useState({
     total: 0,
-    thisMonth: 0,
     today: 0,
-    monthlyTrend: visitorMonths.map((month) => ({ month, count: 0 })),
   });
+  const [dailyVisits, setDailyVisits] = useState<Record<string, number>>({});
   const [hasVisitorData, setHasVisitorData] = useState(false);
+  const [hasWeeklyVisitorData, setHasWeeklyVisitorData] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
-      // 1. Berita
+      // 1. Berita (prestasi ditampilkan di halaman tersendiri)
       const { data: art } = await supabase.from('articles').select('*').order('created_at', { ascending: false });
-      if (art && art.length > 0) setDbArticles(art);
+      if (art && art.length > 0) setDbArticles(art.filter((article) => article.category !== 'Prestasi Siswa'));
 
       // 2. Ekskul
       const { data: eks } = await supabase.from('extracurriculars').select('*').order('created_at', { ascending: false });
@@ -203,16 +216,30 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const loadWeeklyVisits = async () => {
+      const { data, error } = await supabase.rpc('get_site_weekly_visits');
+      if (error) {
+        console.error('Failed to load the weekly visitor trend:', error);
+        setHasWeeklyVisitorData(false);
+        return;
+      }
+      setDailyVisits(data || {});
+      setHasWeeklyVisitorData(true);
+    };
+
     const loadCurrentAnalytics = async () => {
       const { data, error } = await supabase
         .from('site_analytics_realtime')
         .select('*')
         .eq('id', true)
         .maybeSingle();
-      if (!error && data) {
+      if (error) {
+        console.error('Failed to load visitor statistics:', error);
+      } else if (data) {
         setVisitorStats(toVisitorStats(data));
         setHasVisitorData(true);
       }
+      await loadWeeklyVisits();
     };
 
     const channel = supabase
@@ -222,6 +249,7 @@ export default function HomePage() {
         if ('total_visits' in record) {
           setVisitorStats(toVisitorStats(record));
           setHasVisitorData(true);
+          void loadWeeklyVisits();
         }
       })
       .subscribe((status) => {
@@ -287,7 +315,6 @@ export default function HomePage() {
   ];
 
   const defaultArticles = [
-    { title: 'Juara 1 Kejuaraan Tapak Suci Kabupaten Banyumas', category: 'Prestasi Siswa', date_label: 'Agustus 2026', description: 'Siswa SMP Muhammadiyah Kembaran menorehkan medali emas pada cabang seni tunggal.', image_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=600&auto=format&fit=crop&q=80' },
     { title: 'Pelatihan Guru dalam Pemanfaatan Kurikulum AI Digital', category: 'Kabar Pendidik', date_label: 'Juli 2026', description: 'Meningkatkan kompetensi tenaga pendidik dalam integrasi media kurikulum digital berkemajuan.', image_url: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&auto=format&fit=crop&q=80' },
     { title: 'Kemah Akbar Kepanduan Hizbul Wathan Siswa Baru', category: 'Kegiatan Siswa', date_label: 'Juni 2026', description: 'Melatih ketangkasan, kemandirian, dan solidaritas sosial peserta didik di bumi perkemahan.', image_url: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?w=600&auto=format&fit=crop&q=80' },
   ];
@@ -305,7 +332,13 @@ export default function HomePage() {
     teacherScrollRef.current?.scrollBy({ left: direction * 288, behavior: 'smooth' });
   };
 
-  const maxMonthlyCount = Math.max(...visitorStats.monthlyTrend.map(m => m.count), 1);
+  const weeklyTrend = getLastSevenDays(lang).map(({ date, label }) => ({
+    date,
+    label,
+    count: Number(dailyVisits[date] || 0),
+  }));
+  const weeklyTotal = weeklyTrend.reduce((total, day) => total + day.count, 0);
+  const maxWeeklyCount = Math.max(...weeklyTrend.map((day) => day.count), 1);
 
   return (
     <div ref={pageRef} className="relative overflow-x-hidden bg-linear-to-b from-slate-100 via-slate-50 to-sky-100/70 pb-32 dark:from-[#050816] dark:via-[#0a1024] dark:to-[#07101f]">
@@ -442,7 +475,7 @@ export default function HomePage() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
               {[
                 { label: t('Total Kunjungan','Total Visits'), value: visitorStats.total, note: t('Sejak tracking aktif','Since tracking began') },
-                { label: t('Kunjungan Bulan Ini','Visits This Month'), value: visitorStats.thisMonth, note: t('Total page view bulan berjalan','Page views this month') },
+                { label: t('Kunjungan 7 Hari','Visits in 7 Days'), value: weeklyTotal, note: t('Total page view 7 hari terakhir','Page views in the last 7 days') },
                 { label: t('Kunjungan Hari Ini','Visits Today'), value: visitorStats.today, note: t('Total page view hari ini','Page views today') },
               ].map((stat) => (
                 <div key={stat.label} className={`p-6 ${glass} ${glassHover}`}>
@@ -453,27 +486,33 @@ export default function HomePage() {
               ))}
             </div>
 
-            <div className={`p-6 sm:p-8 ${glass}`}>
-              <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-sm font-black text-slate-950 dark:text-white">Tren Kunjungan Bulanan {new Date().getFullYear()}</h3>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">Januari — Desember</span>
-              </div>
-              <div className="grid grid-cols-6 gap-2 text-center sm:grid-cols-12">
-                {visitorStats.monthlyTrend.map((item, index) => {
-                  const heightPercent = (item.count / maxMonthlyCount) * 100;
-                  return (
-                    <div key={index} className="flex h-32 flex-col items-center justify-end">
-                      <span className="mb-1 text-[10px] font-bold text-slate-600 dark:text-slate-300">{item.count.toLocaleString('id-ID')}</span>
-                      <div className="relative flex h-20 w-full max-w-7 items-end overflow-hidden bg-slate-300/40 dark:bg-white/10">
-                        <div className="w-full bg-linear-to-t from-slate-800 to-slate-500 transition-all duration-700 dark:from-sky-400 dark:to-indigo-300" style={{ height: `${Math.max(4, heightPercent)}%` }} />
+            {hasWeeklyVisitorData ? (
+              <div className={`p-6 sm:p-8 ${glass}`}>
+                <div className="mb-6 flex items-center justify-between">
+                  <h3 className="text-sm font-black text-slate-950 dark:text-white">{t('Tren Kunjungan 7 Hari Terakhir', 'Visitor Trend — Last 7 Days')}</h3>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('7 hari terakhir', 'Last 7 days')}</span>
+                </div>
+                <div className="grid grid-cols-7 gap-2 text-center">
+                  {weeklyTrend.map((item) => {
+                    const heightPercent = (item.count / maxWeeklyCount) * 100;
+                    return (
+                      <div key={item.date} className="flex h-32 min-w-0 flex-col items-center justify-end">
+                        <span className="mb-1 text-[10px] font-bold text-slate-600 dark:text-slate-300">{item.count.toLocaleString(lang === 'id' ? 'id-ID' : 'en-US')}</span>
+                        <div className="relative flex h-20 w-full max-w-10 items-end overflow-hidden bg-slate-300/40 dark:bg-white/10">
+                          <div className="w-full bg-linear-to-t from-slate-800 to-slate-500 transition-all duration-700 dark:from-sky-400 dark:to-indigo-300" style={{ height: `${Math.max(4, heightPercent)}%` }} />
+                        </div>
+                        <span className="mt-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">{item.label}</span>
                       </div>
-                      <span className="mt-2 text-[10px] font-medium text-slate-500 dark:text-slate-400">{item.month}</span>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+                <p className="mt-5 text-[11px] text-slate-500 dark:text-slate-400">{t('Setiap perpindahan halaman publik dihitung sebagai satu kunjungan.', 'Each public page view is counted as one visit.')}</p>
               </div>
-              <p className="mt-5 text-[11px] text-slate-500 dark:text-slate-400">Setiap perpindahan halaman publik dihitung sebagai satu kunjungan.</p>
-            </div>
+            ) : (
+              <p role="status" className={`p-6 text-sm text-slate-500 dark:text-slate-400 ${glass}`}>
+                {t('Tren 7 hari belum tersedia. Terapkan migrasi statistik mingguan di Supabase.', 'The 7-day trend is not available yet. Apply the weekly analytics migration in Supabase.')}
+              </p>
+            )}
           </div>
         ) : (
           <p className={`p-8 text-sm leading-6 text-slate-500 dark:text-slate-400 ${glass}`}>

@@ -9,7 +9,7 @@ import AdminNavbar from '../components/navbar';
 import { HEADMASTER_NAME } from '@/lib/school-content';
 
 type OverviewData = {
-  articles: { id: string; title: string; category: string }[];
+  achievements: { id: string; title: string; category: string }[];
   teachers: { id: string; name: string; role: string }[];
   extracurriculars: { id: string; name: string; tag: string }[];
   facilities: { id: string; name: string }[];
@@ -19,7 +19,7 @@ type OverviewData = {
 };
 
 const emptyData: OverviewData = {
-  articles: [],
+  achievements: [],
   teachers: [],
   extracurriculars: [],
   facilities: [],
@@ -31,8 +31,8 @@ const emptyData: OverviewData = {
 const cards = [
   { key: 'applications', label: 'Pendaftar SPMB', en: 'SPMB Applicants', href: '/admin/spmb', color: 'violet' },
   { key: 'gallery', label: 'Galeri Foto & Video', en: 'Photo & Video Gallery', href: '/admin/galeri', color: 'cyan' },
-  { key: 'articles', label: 'Berita & Prestasi', en: 'News & Achievements', href: '/admin/berita', color: 'blue' },
-  { key: 'teachers', label: 'Data Guru & Staff', en: 'Teacher & Staff Data', href: '/admin/guru-staff', color: 'sky' },
+  { key: 'achievements', label: 'Prestasi', en: 'Achievements', href: '/admin/prestasi', color: 'blue' },
+  { key: 'teachers', label: 'Tenaga Kerja', en: 'School Staff', href: '/admin/guru-staff', color: 'sky' },
   { key: 'extracurriculars', label: 'Ekstrakulikuler', en: 'Extracurriculars', href: '/admin/ekstrakulikuler', color: 'emerald' },
   { key: 'facilities', label: 'Sarana & Prasarana', en: 'Facilities', href: '/admin/sarana-prasarana', color: 'amber' },
 ] as const;
@@ -58,8 +58,8 @@ export default function AdminDashboard() {
         return;
       }
 
-      const [articles, teachers, extracurriculars, facilities, stats, applications, gallery] = await Promise.all([
-        supabase.from('articles').select('id,title,category').order('created_at', { ascending: false }),
+      const [achievements, teachers, extracurriculars, facilities, stats, applications, gallery] = await Promise.all([
+        supabase.from('articles').select('id,title,category').eq('category', 'Prestasi Siswa').order('created_at', { ascending: false }),
         supabase.from('teachers').select('id,name,role').order('sort_order').order('name'),
         supabase.from('extracurriculars').select('id,name,tag').order('created_at', { ascending: false }),
         supabase.from('facilities').select('id,name'),
@@ -69,7 +69,7 @@ export default function AdminDashboard() {
       ]);
 
       const failedQueries = [
-        articles.error && 'articles',
+        achievements.error && 'achievements',
         teachers.error && 'teachers',
         extracurriculars.error && 'extracurriculars',
         facilities.error && 'facilities',
@@ -83,7 +83,7 @@ export default function AdminDashboard() {
       }
 
       setData({
-        articles: articles.data || [],
+        achievements: achievements.data || [],
         teachers: teachers.data || [],
         extracurriculars: extracurriculars.data || [],
         facilities: facilities.data || [],
@@ -114,19 +114,19 @@ export default function AdminDashboard() {
 
         {loadWarning && <p role="status" className="rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-100">{loadWarning}</p>}
 
-        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <section className="grid grid-cols-1 gap-3">
           {cards.map((card) => (
-            <Link key={card.key} href={card.href} className="group rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm transition-colors duration-200 hover:border-blue-300 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:border-sky-300/30 dark:hover:bg-white/[0.07]">
-              <div className="flex items-start justify-between gap-3"><p className="text-sm font-bold text-slate-600 dark:text-slate-300">{t(card.label, card.en)}</p><span className="text-lg font-black text-blue-700 dark:text-sky-300">{card.key === 'applications' ? data.applications : card.key === 'gallery' ? data.gallery : data[card.key].length}</span></div>
-              <p className="mt-5 text-xs font-semibold text-blue-600 transition-colors group-hover:text-blue-800 dark:text-sky-400 dark:group-hover:text-sky-300">{t('Kelola data', 'Manage data')}</p>
+            <Link key={card.key} href={card.href} className="group flex min-h-20 items-center justify-between gap-4 rounded-2xl border border-slate-200/80 bg-white/80 px-5 py-4 shadow-sm transition-colors duration-200 hover:border-blue-300 hover:bg-white dark:border-white/10 dark:bg-white/5 dark:hover:border-sky-300/30 dark:hover:bg-white/[0.07]">
+              <div className="flex min-w-0 items-center gap-3">
+                <p className="text-sm font-bold text-slate-700 dark:text-slate-200">{t(card.label, card.en)}</p>
+                <span className="text-lg font-black text-blue-700 dark:text-sky-300">{card.key === 'applications' ? data.applications : card.key === 'gallery' ? data.gallery : data[card.key].length}</span>
+              </div>
+              <p className="shrink-0 text-xs font-semibold text-blue-600 transition-colors group-hover:text-blue-800 dark:text-sky-400 dark:group-hover:text-sky-300">{t('Kelola data', 'Manage data')}</p>
             </Link>
           ))}
         </section>
 
-        <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <a href="https://docs.google.com/spreadsheets/d/16k0WgG2xifOoIEKgJLj3FGsXxT9m7HI5BOh6Z2TTxJA/edit" target="_blank" rel="noopener noreferrer" className="rounded-xl border border-slate-200/80 bg-white/75 p-4 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:border-sky-300/30 dark:hover:text-sky-300">
-            {t('Buka Spreadsheet Surat Masuk', 'Open Incoming Mail Spreadsheet')}
-          </a>
+        <section className="grid grid-cols-1 gap-3">
           <Link href="/" target="_blank" className="rounded-xl border border-slate-200/80 bg-white/75 p-4 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-300 hover:text-blue-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:border-sky-300/30 dark:hover:text-sky-300">
             {t('Lihat layanan di Beranda', 'Preview services on homepage')}
           </Link>
@@ -135,10 +135,10 @@ export default function AdminDashboard() {
           </Link>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <section className="grid grid-cols-1 gap-6">
           <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5 sm:p-7">
-            <div className="flex items-center justify-between border-b border-slate-200/70 pb-4 dark:border-white/10"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400">{t('Data terbaru', 'Latest data')}</p><h2 className="mt-1 text-lg font-black text-blue-950 dark:text-white">{t('Berita & Prestasi', 'News & Achievements')}</h2></div><Link href="/admin/berita" className="text-xs font-bold text-blue-700 dark:text-sky-400">{t('Kelola', 'Manage')}</Link></div>
-            <div className="divide-y divide-slate-200/70 dark:divide-white/10">{data.articles.slice(0, 5).map((item) => <div key={item.id} className="py-3"><p className="text-sm font-bold text-slate-700 dark:text-slate-200">{item.title}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{item.category}</p></div>)}{data.articles.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{t('Belum ada berita.', 'No news yet.')}</p>}</div>
+            <div className="flex items-center justify-between border-b border-slate-200/70 pb-4 dark:border-white/10"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400">{t('Data terbaru', 'Latest data')}</p><h2 className="mt-1 text-lg font-black text-blue-950 dark:text-white">{t('Prestasi Terbaru', 'Latest Achievements')}</h2></div><Link href="/admin/prestasi" className="text-xs font-bold text-blue-700 dark:text-sky-400">{t('Kelola', 'Manage')}</Link></div>
+            <div className="divide-y divide-slate-200/70 dark:divide-white/10">{data.achievements.slice(0, 5).map((item) => <div key={item.id} className="py-3"><p className="text-sm font-bold text-slate-700 dark:text-slate-200">{item.title}</p></div>)}{data.achievements.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{t('Belum ada prestasi.', 'No achievements yet.')}</p>}</div>
           </div>
           <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5 sm:p-7">
             <div className="flex items-center justify-between border-b border-slate-200/70 pb-4 dark:border-white/10"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400">{t('Informasi pimpinan', 'Leadership information')}</p><h2 className="mt-1 text-lg font-black text-blue-950 dark:text-white">{t('Sambutan Kepala Sekolah', "Principal's Message")}</h2></div><Link href="/admin/guru-staff" className="text-xs font-bold text-blue-700 dark:text-sky-400">{t('Edit', 'Edit')}</Link></div>
@@ -146,17 +146,7 @@ export default function AdminDashboard() {
           </div>
         </section>
 
-        <section className="grid gap-6 lg:grid-cols-3">
-          <OverviewList title={t("Guru & Staff", "Teachers & Staff")} href="/admin/guru-staff" items={data.teachers.map(item => `${item.name} · ${item.role}`)} empty={t("Belum ada data guru.", "No teacher data yet.")} />
-          <OverviewList title={t("Ekstrakulikuler", "Extracurriculars")} href="/admin/ekstrakulikuler" items={data.extracurriculars.map(item => `${item.name} · ${item.tag}`)} empty={t("Belum ada kegiatan.", "No activities yet.")} />
-          <OverviewList title={t("Sarana & Prasarana", "Facilities")} href="/admin/sarana-prasarana" items={data.facilities.map(item => item.name)} empty={t("Belum ada sarana.", "No facilities yet.")} />
-        </section>
       </div>
     </div>
   );
-}
-
-function OverviewList({ title, href, items, empty }: { title: string; href: string; items: string[]; empty: string }) {
-  const { t } = useLang();
-  return <section className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5 sm:p-6"><div className="flex items-center justify-between border-b border-slate-200/70 pb-3 dark:border-white/10"><h2 className="font-black text-blue-950 dark:text-white">{title}</h2><Link href={href} className="text-xs font-bold text-blue-700 dark:text-sky-400">{t('Kelola', 'Manage')}</Link></div><div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1">{items.map((item, index) => <p key={`${item}-${index}`} className="rounded-lg bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600 dark:bg-slate-900 dark:text-slate-300">{item}</p>)}{items.length === 0 && <p className="py-5 text-center text-xs text-slate-400">{empty}</p>}</div></section>;
 }

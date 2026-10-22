@@ -1,3 +1,5 @@
-import BeritaPage from '../menu-navbar/berita';
+import { redirect } from 'next/navigation';
 
-export default BeritaPage;
+export default function LegacyAdminBeritaPage() {
+  redirect('/admin/prestasi');
+}

@@ -42,7 +42,7 @@ Buka `http://localhost:3000`. Query Supabase sudah digunakan oleh halaman berand
 
 ### Statistik Kunjungan Realtime
 
-Jalankan `supabase/migrations/002_realtime_site_analytics.sql` di Supabase SQL Editor untuk mengaktifkan pencatatan kunjungan dan pembaruan Realtime. Statistik menghitung page view halaman publik, bukan pengunjung unik, dan mulai dihitung sejak migrasi ini aktif; tidak ada angka historis yang dibuat-buat. Log mentah tidak dapat dibaca oleh role publik, sementara agregat saja yang dibaca halaman Home.
+Jalankan `supabase/migrations/002_realtime_site_analytics.sql` di Supabase SQL Editor untuk mengaktifkan pencatatan kunjungan dan pembaruan Realtime. Jalankan juga `supabase/migrations/005_weekly_visitor_stats.sql` untuk menampilkan tren 7 hari terakhir. Statistik menghitung page view halaman publik, bukan pengunjung unik; total dan harian mengikuti pencatatan yang sudah ada. Log mentah tidak dapat dibaca oleh role publik, dan fungsi tren mingguan hanya mengembalikan agregat tanggal.
 
 Untuk memperbarui nama kepala sekolah pada data tersimpan, jalankan `supabase/migrations/003_update_headmaster_name.sql` di Supabase SQL Editor. Tampilan publik dan admin mengenali nama lama sambil menunggu migrasi diterapkan.
 

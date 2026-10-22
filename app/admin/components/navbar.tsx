@@ -7,21 +7,43 @@ import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/i18n';
 import { setThemeWithTransition, syncThemeFromStorage, useThemeMode } from '@/lib/theme-transition';
 
+type AdminNavLink = { href: string; label: string };
+type AdminNavItem =
+  | ({ type: 'link' } & AdminNavLink)
+  | { type: 'submenu'; id: string; label: string; links: AdminNavLink[] };
+
 export default function AdminNavbar() {
   const { lang, setLang, t } = useLang();
   const links = [
     { href: '/admin/dashboard', label: t('Dashboard', 'Dashboard') },
     { href: '/admin/spmb', label: t('Pendaftar SPMB', 'SPMB Applicants') },
     { href: '/admin/galeri', label: t('Galeri Foto & Video', 'Photo & Video Gallery') },
-    { href: '/admin/berita', label: t('Berita', 'News') },
-    { href: '/admin/guru-staff', label: t('Data Guru & Staff', 'Teacher & Staff Data') },
+    { href: '/admin/prestasi', label: t('Prestasi', 'Achievements') },
+    { href: '/admin/guru-staff', label: t('Tenaga Kerja', 'School Staff') },
     { href: '/admin/ekstrakulikuler', label: t('Ekstrakulikuler', 'Extracurriculars') },
     { href: '/admin/sarana-prasarana', label: t('Sarana & Prasarana', 'Facilities') },
+    { href: '/admin/surat-masuk', label: t('Surat Masuk', 'Incoming Mail') },
+  ];
+  const navItems: AdminNavItem[] = [
+    { type: 'link', ...links[0] },
+    {
+      type: 'submenu',
+      id: 'school',
+      label: t('Data Sekolah', 'School Data'),
+      links: [links[2], links[3], links[4], links[5], links[6]],
+    },
+    {
+      type: 'submenu',
+      id: 'public-services',
+      label: t('Layanan Publik', 'Public Services'),
+      links: [links[1], links[7]],
+    },
   ];
   const pathname = usePathname();
   const router = useRouter();
   const isDark = useThemeMode();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.classList.add('admin-interface');
@@ -39,7 +61,10 @@ export default function AdminNavbar() {
     router.replace('/admin/login');
   };
 
-  const closeMobileMenu = () => setMobileMenuOpen(false);
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+    setOpenSubmenu(null);
+  };
   const isActive = (href: string) => href === '/admin/dashboard' ? pathname === href : pathname.startsWith(href);
 
   return (
@@ -56,11 +81,35 @@ export default function AdminNavbar() {
             </div>
           </Link>
 
-          <div className="hidden min-w-0 flex-1 items-center justify-start gap-1 overflow-x-auto px-2 text-xs font-semibold text-slate-700 dark:text-slate-200 xl:flex">
-            {links.map((link) => (
-              <Link key={link.href} href={link.href} className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 transition-all duration-200 active:scale-95 ${isActive(link.href) ? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}>
-                {link.label}
+          <div className="hidden min-w-0 flex-1 items-center justify-start gap-1 px-2 text-xs font-semibold text-slate-700 dark:text-slate-200 xl:flex">
+            {navItems.map((item) => item.type === 'link' ? (
+              <Link key={item.href} href={item.href} className={`shrink-0 whitespace-nowrap rounded-full px-3 py-2 transition-all duration-200 active:scale-95 ${isActive(item.href) ? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}>
+                {item.label}
               </Link>
+            ) : (
+              <div key={item.id} className="relative shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setOpenSubmenu(openSubmenu === item.id ? null : item.id)}
+                  aria-expanded={openSubmenu === item.id}
+                  aria-controls={`admin-desktop-submenu-${item.id}`}
+                  className={`flex items-center gap-1 whitespace-nowrap rounded-full px-3 py-2 transition-all duration-200 active:scale-95 ${item.links.some((link) => isActive(link.href)) ? 'bg-blue-50 text-blue-700 shadow-sm dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}
+                >
+                  {item.label}
+                  <svg aria-hidden="true" className={`h-3.5 w-3.5 transition-transform ${openSubmenu === item.id ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.09 1.03l-4.25 4.5a.75.75 0 01-1.09 0l-4.25-4.5a.75.75 0 01.02-1.05z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                {openSubmenu === item.id && (
+                  <div id={`admin-desktop-submenu-${item.id}`} className="absolute left-0 top-full z-50 mt-2 flex min-w-52 flex-col gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-2 text-slate-700 shadow-xl backdrop-blur-xl dark:border-white/10 dark:bg-slate-900/95 dark:text-slate-200">
+                    {item.links.map((link) => (
+                      <Link key={link.href} href={link.href} onClick={closeMobileMenu} className={`whitespace-nowrap rounded-xl px-3 py-2 transition-colors ${isActive(link.href) ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}>
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
 
@@ -71,12 +120,40 @@ export default function AdminNavbar() {
             <button type="button" onClick={() => setLang(lang === 'id' ? 'en' : 'id')} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 text-[11px] font-bold text-slate-700 shadow-sm transition-all duration-200 hover:bg-slate-100 active:scale-90 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:h-10 sm:w-10" title={t('Switch to English', 'Ganti ke Bahasa Indonesia')} aria-label={t('Ganti Bahasa', 'Change Language')}>{lang === 'id' ? 'ID' : 'EN'}</button>
             <Link href="/" target="_blank" className="hidden rounded-full px-3 py-2 text-xs font-semibold text-slate-700 transition-all hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-slate-800 dark:hover:text-sky-400 sm:inline-flex">{t('Lihat Web', 'View Site')}</Link>
             <button type="button" onClick={logout} className="hidden rounded-full bg-red-600 px-4 py-2 text-xs font-semibold text-white shadow-md shadow-red-600/20 transition-all hover:bg-red-700 active:scale-95 sm:inline-flex">{t('Keluar', 'Logout')}</button>
-            <button type="button" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="rounded-2xl bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 xl:hidden" aria-label={mobileMenuOpen ? t('Tutup Menu', 'Close Menu') : t('Buka Menu', 'Open Menu')} aria-expanded={mobileMenuOpen}><svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">{mobileMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />}</svg></button>
+            <button type="button" onClick={() => { setMobileMenuOpen(!mobileMenuOpen); setOpenSubmenu(null); }} className="rounded-2xl bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 xl:hidden" aria-label={mobileMenuOpen ? t('Tutup Menu', 'Close Menu') : t('Buka Menu', 'Open Menu')} aria-expanded={mobileMenuOpen}><svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">{mobileMenuOpen ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /> : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16m-7 6h7" />}</svg></button>
           </div>
         </div>
 
         {mobileMenuOpen && <div className="nav-mobile-panel mt-3 flex max-h-[min(70vh,34rem)] flex-col gap-1 overflow-y-auto border-t border-slate-200/80 pt-3 text-sm font-medium text-slate-700 dark:border-slate-800 dark:text-slate-200 xl:hidden">
-          {links.map((link) => <Link key={link.href} href={link.href} onClick={closeMobileMenu} className={`rounded-xl px-3 py-2 transition-colors ${isActive(link.href) ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 dark:hover:bg-slate-800'}`}>{link.label}</Link>)}
+          {navItems.map((item) => item.type === 'link' ? (
+            <Link key={item.href} href={item.href} onClick={closeMobileMenu} className={`rounded-xl px-3 py-2 transition-colors ${isActive(item.href) ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 dark:hover:bg-slate-800'}`}>
+              {item.label}
+            </Link>
+          ) : (
+            <div key={item.id}>
+              <button
+                type="button"
+                onClick={() => setOpenSubmenu(openSubmenu === item.id ? null : item.id)}
+                aria-expanded={openSubmenu === item.id}
+                aria-controls={`admin-mobile-submenu-${item.id}`}
+                className={`flex w-full items-center justify-between rounded-xl px-3 py-2 text-left transition-colors ${item.links.some((link) => isActive(link.href)) ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 dark:hover:bg-slate-800'}`}
+              >
+                {item.label}
+                <svg aria-hidden="true" className={`h-4 w-4 transition-transform ${openSubmenu === item.id ? 'rotate-180' : ''}`} viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.09 1.03l-4.25 4.5a.75.75 0 01-1.09 0l-4.25-4.5a.75.75 0 01.02-1.05z" clipRule="evenodd" />
+                </svg>
+              </button>
+              {openSubmenu === item.id && (
+                <div id={`admin-mobile-submenu-${item.id}`} className="ml-3 mt-1 flex flex-col gap-1 border-l border-slate-200 pl-2 dark:border-slate-700">
+                  {item.links.map((link) => (
+                    <Link key={link.href} href={link.href} onClick={closeMobileMenu} className={`rounded-xl px-3 py-2 transition-colors ${isActive(link.href) ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 dark:hover:bg-slate-800'}`}>
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
           <Link href="/" target="_blank" onClick={closeMobileMenu} className="rounded-xl px-3 py-2 hover:bg-blue-50 dark:hover:bg-slate-800">{t('Lihat Web', 'View Site')}</Link>
           <button type="button" onClick={logout} className="rounded-xl px-3 py-2 text-left font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40">{t('Keluar', 'Logout')}</button>
         </div>}
