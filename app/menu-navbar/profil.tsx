@@ -130,23 +130,6 @@ function HeroSlider() {
 
       {total > 1 && (
         <>
-          <button
-            type="button"
-            onClick={() => goTo(active - 1)}
-            aria-label={t('Foto sebelumnya', 'Previous photo')}
-            className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-white/30 bg-slate-950/40 text-white opacity-100 backdrop-blur transition-colors hover:bg-white hover:text-slate-950 sm:left-6 sm:opacity-0 sm:group-hover:opacity-100"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 5l-7 7 7 7" /></svg>
-          </button>
-          <button
-            type="button"
-            onClick={() => goTo(active + 1)}
-            aria-label={t('Foto berikutnya', 'Next photo')}
-            className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center border border-white/30 bg-slate-950/40 text-white opacity-100 backdrop-blur transition-colors hover:bg-white hover:text-slate-950 sm:right-6 sm:opacity-0 sm:group-hover:opacity-100"
-          >
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7" /></svg>
-          </button>
-
           <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2">
             {HERO_SLIDES.map((slide, i) => (
               <button
