@@ -33,7 +33,7 @@ export const DEFAULT_FACILITIES: SchoolFacility[] = [
     id: 'teachers-room',
     name: 'Ruang Guru',
     description: 'Ruang kerja tenaga pendidik dan kependidikan untuk menyiapkan kegiatan sekolah.',
-    image_url: '/img/bahan/IMG_0671.jpeg',
+    image_url: '/img/bahan/IMG_0674.jpeg',
   },
   {
     id: 'principal-office',

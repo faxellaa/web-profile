@@ -241,6 +241,49 @@ html:not(.dark) .site-footer [class*="text-sky-400"] {
   transform: translateY(0);
 }
 
+.home-welcome-card {
+  min-height: 600px;
+}
+
+.home-welcome-card__content {
+  min-height: 900px;
+}
+
+@media (min-width: 360px) {
+  .home-welcome-card__content {
+    min-height: 780px;
+  }
+}
+
+@media (min-width: 480px) {
+  .home-welcome-card__content {
+    min-height: 620px;
+  }
+}
+
+@media (min-width: 520px) {
+  .home-welcome-card__content {
+    min-height: 560px;
+  }
+}
+
+@media (min-width: 640px) {
+  .home-welcome-card__content {
+    min-height: 520px;
+  }
+}
+
+@media (min-width: 768px) {
+  .home-welcome-card {
+    min-height: 620px;
+  }
+
+  .home-welcome-card__image,
+  .home-welcome-card__content {
+    min-height: 620px;
+  }
+}
+
 .nav-dropdown {
   transform-origin: top left;
   animation: nav-panel-enter 180ms ease-out both;

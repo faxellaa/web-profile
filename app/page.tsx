@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { DEFAULT_EXTRACURRICULARS, DEFAULT_TEACHERS, HEADMASTER_NAME, mergeDefaultFacilities, orderExtracurriculars, SCHOOL_MISSIONS, SCHOOL_MISSIONS_EN, SCHOOL_VISION, SCHOOL_VISION_CONTEXT, SCHOOL_VISION_CONTEXT_EN, SCHOOL_VISION_EN, type SchoolTeacher } from '@/lib/school-content';
 import { PRESTASI_INFO } from '@/lib/prestasi-data';
 import { WA_ADMIN_URL } from '@/lib/site-links';
+import AchievementCard, { type AchievementCardProps } from './components/AchievementCard';
 
 type VisitorAnalytics = {
   total_visits: number;
@@ -20,11 +21,12 @@ type WeeklyVisitorStats = {
 };
 
 type HomeArticle = {
+  id?: string;
   title: string;
   category: string;
   description: string;
-  image_url?: string;
-  date_label?: string;
+  image_url?: string | null;
+  date_label?: string | null;
 };
 
 type HomeActivity = {
@@ -77,25 +79,6 @@ const getLastSevenDays = (locale: string) => {
     return { date: date.toISOString().slice(0, 10), label: labelFormatter.format(date) };
   });
 };
-
-const PRESTASI_PREVIEW = [
-  {
-    file: 'WhatsApp Image 2026-10-11 at 16.15.26.jpeg',
-    info: PRESTASI_INFO['WhatsApp Image 2026-10-11 at 16.15.26.jpeg'],
-  },
-  {
-    file: 'WhatsApp Image 2026-10-11 at 16.15.27.jpeg',
-    info: PRESTASI_INFO['WhatsApp Image 2026-10-11 at 16.15.27.jpeg'],
-  },
-  {
-    file: 'WhatsApp Image 2026-10-11 at 16.15.28.jpeg',
-    info: PRESTASI_INFO['WhatsApp Image 2026-10-11 at 16.15.28.jpeg'],
-  },
-  {
-    file: 'WhatsApp Image 2026-10-11 at 16.16.05.jpeg',
-    info: PRESTASI_INFO['WhatsApp Image 2026-10-11 at 16.16.05.jpeg'],
-  },
-]
 
 const HEADMASTER_SPEECH_EN = `"Assalamu'alaikum Warahmatullahi Wabarakatuh, good morning and warm greetings to all of us.
 
@@ -180,17 +163,14 @@ function SectionHead({ label, title, desc, children }: { label: string; title: s
   );
 }
 
-const carouselControl =
-  'inline-flex items-center justify-center rounded-lg border border-white/70 bg-white/45 px-3 py-2 text-xs font-semibold text-slate-800 backdrop-blur-2xl transition-colors duration-200 hover:bg-white/80 dark:border-white/10 dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/15';
-
 export default function HomePage() {
   const { lang, t } = useLang();
 
-  const teacherScrollRef = useRef<HTMLDivElement>(null);
   const pageRef = useRef<HTMLDivElement>(null);
 
   // State Membaca Langsung dari Supabase
   const [dbArticles, setDbArticles] = useState<HomeArticle[]>([]);
+  const [dbAchievements, setDbAchievements] = useState<HomeArticle[]>([]);
   const [dbEkskuls, setDbEkskuls] = useState<HomeActivity[]>([]);
   const [dbFacilities, setDbFacilities] = useState<HomeFacility[]>([]);
   const [dbTeachers, setDbTeachers] = useState<SchoolTeacher[] | null>(null);
@@ -200,7 +180,7 @@ export default function HomePage() {
     speech: '',
     photo_url: '/img/guru/Isti%20KS.jpg',
   });
-
+  const [schoolStatsLoaded, setSchoolStatsLoaded] = useState(false);
   // Starts empty so demo values are never presented as real traffic.
   const [visitorStats, setVisitorStats] = useState({
     total: 0,
@@ -209,12 +189,18 @@ export default function HomePage() {
   const [weeklyVisitorStats, setWeeklyVisitorStats] = useState<WeeklyVisitorStats>({ daily: {}, unique_visitors: 0 });
   const [hasVisitorData, setHasVisitorData] = useState(false);
   const [hasWeeklyVisitorData, setHasWeeklyVisitorData] = useState(false);
+  const speechText = lang === 'en' && (!dbStats.speech || dbStats.speech.includes('Selamat pagi dan salam sejahtera'))
+    ? HEADMASTER_SPEECH_EN
+    : dbStats.speech || 'Assalamu’alaikum Warahmatullahi Wabarakatuh. Selamat datang di website resmi SMP Muhammadiyah Kembaran. Mari bersama mendukung pendidikan yang berkarakter, berprestasi, dan berkemajuan. Wassalamu’alaikum Warahmatullahi Wabarakatuh.';
 
   useEffect(() => {
     async function fetchData() {
       // 1. Berita (prestasi ditampilkan di halaman tersendiri)
       const { data: art } = await supabase.from('articles').select('*').order('created_at', { ascending: false });
-      if (art && art.length > 0) setDbArticles(art.filter((article) => article.category !== 'Prestasi Siswa'));
+      if (art) {
+        setDbArticles(art.filter((article) => article.category !== 'Prestasi Siswa'));
+        setDbAchievements(art.filter((article) => article.category === 'Prestasi Siswa'));
+      }
 
       // 2. Ekskul
       const { data: eks } = await supabase.from('extracurriculars').select('*').order('created_at', { ascending: false });
@@ -228,18 +214,34 @@ export default function HomePage() {
       const { data: teachers } = await supabase.from('teachers').select('*').order('sort_order').order('name');
       if (teachers) setDbTeachers(teachers);
 
-      // 5. Sambutan kepala sekolah
-      const { data: st } = await supabase.from('school_stats').select('*').limit(1).single();
-      if (st) {
+    }
+    fetchData();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchSchoolStats() {
+      const { data, error } = await supabase.from('school_stats').select('*').limit(1).maybeSingle();
+      if (cancelled) return;
+
+      if (error) {
+        console.error('Failed to load the headmaster welcome:', error);
+      } else if (data) {
         setDbStats({
           headmaster_name: HEADMASTER_NAME,
-          speech: st.headmaster_speech || '',
-          photo_url: st.headmaster_photo_url || '/img/guru/Isti%20KS.jpg',
+          speech: data.headmaster_speech || '',
+          photo_url: data.headmaster_photo_url || '/img/guru/Isti%20KS.jpg',
         });
       }
 
+      setSchoolStatsLoaded(true);
     }
-    fetchData();
+
+    void fetchSchoolStats();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -349,13 +351,28 @@ export default function HomePage() {
   const displayFacilities = mergeDefaultFacilities(dbFacilities);
   const displayArticles = dbArticles.length > 0 ? dbArticles : defaultArticles;
   const displayTeachers = dbTeachers ?? DEFAULT_TEACHERS;
+  const staticAchievements: AchievementCardProps[] = Object.entries(PRESTASI_INFO).map(([file, info]) => ({
+    imageUrl: `/img/prestasi/${encodeURIComponent(file)}`,
+    imageAlt: `${t(info.title.id, info.title.en)} - ${t(info.name.id, info.name.en)}`,
+    badge: t(info.badge.id, info.badge.en),
+    title: t(info.title.id, info.title.en),
+    event: t(info.event.id, info.event.en),
+    participant: `${t(info.name.id, info.name.en)}${info.grade ? ` · ${t(`Kelas ${info.grade}`, `Grade ${info.grade}`)}` : ''}`,
+    detail: info.detail ? t(info.detail.id, info.detail.en) : undefined,
+  }));
+  const displayAchievements: AchievementCardProps[] = dbAchievements.length > 0
+    ? dbAchievements.map((achievement) => ({
+        imageUrl: achievement.image_url ?? null,
+        imageAlt: achievement.title,
+        badge: t('Prestasi Siswa', 'Student Achievement'),
+        title: achievement.title,
+        event: achievement.description,
+        participant: achievement.date_label ?? undefined,
+      }))
+    : staticAchievements;
 
   const togglePanel = (panel: HomePanelKey) => {
     setOpenPanels((current) => (current.includes(panel) ? current.filter((item) => item !== panel) : [...current, panel]));
-  };
-
-  const scrollTeachers = (direction: -1 | 1) => {
-    teacherScrollRef.current?.scrollBy({ left: direction * 288, behavior: 'smooth' });
   };
 
   const weeklyTrend = getLastSevenDays(lang).map(({ date, label }) => ({
@@ -412,20 +429,33 @@ export default function HomePage() {
       </section>
 
       {/* 2. SAMBUTAN */}
-      <section id="sambutan" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
+      <section id="sambutan" className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
         <SectionHead label={t('Pesan Pimpinan','Message from the Head')} title={t('Sambutan Kepala Sekolah','Headmaster’s Welcome')} />
-        <div className={`grid w-full overflow-hidden md:grid-cols-[200px_1fr] ${glass}`}>
-          <div className="relative aspect-[4/5] w-full overflow-hidden bg-slate-200 dark:bg-slate-900 md:aspect-auto">
+        <div className={`home-welcome-card grid w-full overflow-hidden md:grid-cols-[280px_minmax(0,1fr)] ${glass}`}>
+          <div className="home-welcome-card__image relative aspect-[4/5] w-full overflow-hidden bg-slate-100 dark:bg-slate-900 md:aspect-auto">
             {dbStats.photo_url ? (
-              <img src={dbStats.photo_url} alt={dbStats.headmaster_name} className="absolute inset-0 h-full w-full object-cover object-top" />
+              <>
+                <img src={dbStats.photo_url} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-2xl" />
+                <img src={dbStats.photo_url} alt={dbStats.headmaster_name} className="absolute inset-0 h-full w-full object-contain object-center" />
+              </>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-sky-200/70 via-white to-violet-200/60 text-7xl font-black text-slate-500 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-400">{dbStats.headmaster_name.charAt(0)}</div>
             )}
           </div>
-          <div className="flex flex-col justify-center p-6 sm:p-8">
-            <p className="whitespace-pre-line text-sm leading-7 text-slate-700 dark:text-slate-300">
-              {lang === 'en' && (!dbStats.speech || dbStats.speech.includes('Selamat pagi dan salam sejahtera')) ? HEADMASTER_SPEECH_EN : dbStats.speech || 'Assalamu’alaikum Warahmatullahi Wabarakatuh. Selamat datang di website resmi SMP Muhammadiyah Kembaran. Mari bersama mendukung pendidikan yang berkarakter, berprestasi, dan berkemajuan. Wassalamu’alaikum Warahmatullahi Wabarakatuh.'}
-            </p>
+          <div aria-busy={!schoolStatsLoaded} className="home-welcome-card__content flex flex-col justify-start p-6 sm:p-8">
+            {schoolStatsLoaded ? (
+              <p className="whitespace-pre-line text-sm leading-6 text-slate-700 dark:text-slate-300">
+                {speechText}
+              </p>
+            ) : (
+              <div role="status" aria-label={t('Memuat sambutan kepala sekolah', 'Loading the headmaster welcome')} className="space-y-4">
+                <span className="sr-only">{t('Memuat sambutan kepala sekolah', 'Loading the headmaster welcome')}</span>
+                <div aria-hidden="true" className="h-4 w-full rounded-sm bg-slate-300/70 blur-[1px] dark:bg-white/15" />
+                <div aria-hidden="true" className="h-4 w-[94%] rounded-sm bg-slate-300/70 blur-[1px] dark:bg-white/15" />
+                <div aria-hidden="true" className="h-4 w-[86%] rounded-sm bg-slate-300/70 blur-[1px] dark:bg-white/15" />
+                <div aria-hidden="true" className="h-4 w-[72%] rounded-sm bg-slate-300/70 blur-[1px] dark:bg-white/15" />
+              </div>
+            )}
             <div className="mt-5 border-t border-slate-300/60 pt-4 dark:border-white/10">
               <p className="font-black text-slate-950 dark:text-white">{dbStats.headmaster_name}</p>
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{t('Kepala Sekolah SMP Muhammadiyah Kembaran','Headmaster of SMP Muhammadiyah Kembaran')}</p>
@@ -466,12 +496,11 @@ export default function HomePage() {
       {/* 4. TENAGA KERJA */}
       <section id="guru" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
         <SectionHead label={t('Orang-Orang di Balik Sekolah','The People Behind the School')} title={t('Tenaga Kerja','Our Staff')} desc={t('Kenali pendidik yang mendampingi perjalanan belajar siswa.','Meet the educators who guide our students’ learning journey.')}>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => scrollTeachers(-1)} aria-label={t('Geser daftar guru ke kiri','Scroll staff list left')} className={carouselControl}>{t('Sebelumnya', 'Previous')}</button>
-            <button type="button" onClick={() => scrollTeachers(1)} aria-label={t('Geser daftar guru ke kanan','Scroll staff list right')} className={carouselControl}>{t('Berikutnya', 'Next')}</button>
-          </div>
+          <Link href="/guru" className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-white/70 bg-white/55 px-6 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-900 backdrop-blur-2xl transition-colors duration-200 hover:bg-white/80 dark:border-white/15 dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/[0.12]">
+            {t('Lihat Semua', 'View All')}
+          </Link>
         </SectionHead>
-        <div ref={teacherScrollRef} className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {displayTeachers.slice(0, 6).map((teacher, index) => (
             <Link href="/guru" key={teacher.id || teacher.name || index} className={`group relative w-48 shrink-0 snap-start overflow-hidden sm:w-56 ${glass} ${glassHover}`}>
               <div className="relative aspect-[4/5] overflow-hidden bg-slate-200 dark:bg-slate-900">
@@ -484,7 +513,6 @@ export default function HomePage() {
             </Link>
           ))}
         </div>
-        <div className="mt-6 text-center"><Link href="/guru" className="text-xs font-bold uppercase tracking-[0.2em] text-slate-900 underline-offset-4 hover:underline dark:text-white">{t('Lihat selengkapnya','See more')}</Link></div>
       </section>
 
       {/* 5. STATISTIK */}
@@ -536,7 +564,7 @@ export default function HomePage() {
               </div>
             ) : (
               <p role="status" className={`p-6 text-sm text-slate-500 dark:text-slate-400 ${glass}`}>
-                {t('Tren pengunjung belum tersedia. Terapkan migrasi statistik pengunjung terbaru di Supabase.', 'The visitor trend is not available yet. Apply the latest visitor analytics migration in Supabase.')}
+                {t('Tren pengunjung mingguan belum tersedia saat ini.', 'The weekly visitor trend is temporarily unavailable.')}
               </p>
             )}
           </div>
@@ -607,36 +635,19 @@ export default function HomePage() {
             {t('Lihat Semua','View All')}
           </Link>
         </SectionHead>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {PRESTASI_PREVIEW.map(({ file, info }) => (
-            <Link href="/prestasi" key={file} className={`group flex min-w-0 flex-col overflow-hidden p-2 ${glass} ${glassHover}`}>
-              <div className="aspect-[4/5] w-full overflow-hidden">
-                <img
-                  src={`/img/prestasi/${encodeURIComponent(file)}`}
-                  alt={`${t(info.name.id, info.name.en)} - ${t(info.title.id, info.title.en)}`}
-                  className="h-full w-full object-contain"
-                  loading="lazy"
-                />
-              </div>
-              <div className="flex flex-1 flex-col gap-2 p-3">
-                <span className="w-fit border border-white/70 bg-white/60 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-300">
-                  {t(info.badge.id, info.badge.en)}
-                </span>
-                <h3 className="text-sm font-black leading-snug text-slate-950 dark:text-white">
-                  {t(info.title.id, info.title.en)}
-                </h3>
-                <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
-                  {t(info.event.id, info.event.en)}
-                </p>
-                <p className="mt-auto text-xs font-semibold text-slate-700 dark:text-slate-200">
-                  {t(info.name.id, info.name.en)}{info.grade ? ` · ${t(`Kelas ${info.grade}`, `Grade ${info.grade}`)}` : ''}
-                </p>
-                {info.detail && (
-                  <p className="border-t border-slate-200/70 pt-2 text-[11px] leading-4 text-slate-500 dark:border-white/10 dark:text-slate-400">
-                    {t(info.detail.id, info.detail.en)}
-                  </p>
-                )}
-              </div>
+        <div
+          role="region"
+          aria-label={t('Daftar prestasi, geser untuk melihat lainnya', 'Achievements, scroll to see more')}
+          tabIndex={0}
+          className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:thin]"
+        >
+          {displayAchievements.map((achievement, index) => (
+            <Link
+              href="/prestasi"
+              key={`${achievement.title}-${index}`}
+              className="w-[78%] shrink-0 snap-start sm:w-[48%] lg:w-[23%]"
+            >
+              <AchievementCard {...achievement} />
             </Link>
           ))}
         </div>
