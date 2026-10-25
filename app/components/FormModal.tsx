@@ -44,9 +44,9 @@ export default function FormModal({ open, title, onClose, children }: FormModalP
         onClose();
       }}
       onClick={closeFromBackdrop}
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-5xl overscroll-contain rounded-3xl border border-slate-200/80 bg-slate-50 p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/70 backdrop:backdrop-blur-sm dark:border-white/10 dark:bg-slate-950 dark:text-white"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-5xl overscroll-contain rounded-3xl border border-slate-200/80 bg-white p-0 text-slate-900 shadow-2xl backdrop:bg-slate-950/70 backdrop:backdrop-blur-sm dark:border-white/10 dark:bg-black dark:text-white"
     >
-      <div className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-slate-200/80 bg-slate-50/95 px-5 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/95 sm:px-7">
+      <div className="sticky top-0 z-20 flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-5 py-3 backdrop-blur-xl dark:border-white/10 dark:bg-black/95 sm:px-7">
         <h2 id="form-modal-title" className="text-sm font-bold text-slate-900 dark:text-white">
           {title}
         </h2>

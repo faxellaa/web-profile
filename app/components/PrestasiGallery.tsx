@@ -24,6 +24,7 @@ export default function PrestasiGallery({ photos }: { photos: PrestasiPhoto[] })
   const { t, lang } = useLang();
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [achievements, setAchievements] = useState<ManagedAchievement[]>([]);
+  const [achievementsLoaded, setAchievementsLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function PrestasiGallery({ photos }: { photos: PrestasiPhoto[] })
       }
 
       setAchievements(data || []);
+      setAchievementsLoaded(true);
     };
 
     void loadAchievements();
@@ -51,10 +53,9 @@ export default function PrestasiGallery({ photos }: { photos: PrestasiPhoto[] })
     };
   }, []);
 
-  const items: GalleryItem[] = [
-    ...achievements.map((achievement) => ({ type: 'achievement' as const, key: achievement.id, achievement })),
-    ...photos.map((photo) => ({ type: 'photo' as const, key: photo.src, photo })),
-  ];
+  const items: GalleryItem[] = achievementsLoaded
+    ? achievements.map((achievement) => ({ type: 'achievement' as const, key: achievement.id, achievement }))
+    : photos.map((photo) => ({ type: 'photo' as const, key: photo.src, photo }));
 
   if (!items.length) {
     return (
@@ -77,7 +78,7 @@ export default function PrestasiGallery({ photos }: { photos: PrestasiPhoto[] })
       <ul className="mx-auto grid max-w-5xl grid-cols-1 gap-6 lg:grid-cols-2">
         {items.slice(0, visible).map((item) => item.type === 'photo' ? (
           <li key={item.key}>
-            <article className="grid h-full overflow-hidden bg-linear-to-br from-sky-200/60 via-white/80 to-violet-200/70 shadow-[0_14px_36px_-20px_rgba(15,23,42,0.55)] dark:from-sky-500/15 dark:via-slate-900/90 dark:to-indigo-500/20 sm:grid-cols-[0.9fr_1.1fr]">
+            <article className="grid h-full overflow-hidden bg-white shadow-[0_14px_36px_-20px_rgba(15,23,42,0.55)] dark:bg-slate-900 sm:grid-cols-[0.9fr_1.1fr]">
               <div className="relative aspect-[4/5] overflow-hidden bg-transparent sm:aspect-auto sm:min-h-[18rem]">
                 <img src={item.photo.src} alt="" loading="lazy" className="h-full w-full object-contain" />
               </div>
@@ -120,7 +121,7 @@ export default function PrestasiGallery({ photos }: { photos: PrestasiPhoto[] })
           </li>
         ) : (
           <li key={item.key}>
-            <article className="grid h-full overflow-hidden bg-linear-to-br from-sky-200/60 via-white/80 to-violet-200/70 shadow-[0_14px_36px_-20px_rgba(15,23,42,0.55)] dark:from-sky-500/15 dark:via-slate-900/90 dark:to-indigo-500/20 sm:grid-cols-[0.9fr_1.1fr]">
+            <article className="grid h-full overflow-hidden bg-white shadow-[0_14px_36px_-20px_rgba(15,23,42,0.55)] dark:bg-slate-900 sm:grid-cols-[0.9fr_1.1fr]">
               <div className="relative aspect-[4/5] overflow-hidden bg-transparent sm:aspect-auto sm:min-h-[18rem]">
                 {item.achievement.image_url ? (
                   <img src={item.achievement.image_url} alt="" loading="lazy" className="h-full w-full object-contain" />

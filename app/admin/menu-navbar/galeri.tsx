@@ -4,9 +4,10 @@ import { FormEvent, useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { uploadSchoolImage } from '@/lib/storage';
+import { deleteSchoolImage, uploadSchoolImage } from '@/lib/storage';
 import { getYouTubeVideoId } from '@/lib/youtube';
 import AdminFormModal from '../components/AdminFormModal';
+import AdminImageField from '../components/AdminImageField';
 import AdminNavbar from '../components/navbar';
 
 type GalleryItem = {
@@ -18,11 +19,13 @@ type GalleryItem = {
   created_at: string;
 };
 
-export default function AdminGalleryPage() {
+type MediaType = GalleryItem['media_type'];
+
+export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }) {
   const router = useRouter();
   const { t } = useLang();
   const [items, setItems] = useState<GalleryItem[]>([]);
-  const [mediaType, setMediaType] = useState<'photo' | 'video'>('photo');
+  const [editing, setEditing] = useState<GalleryItem | null>(null);
   const [title, setTitle] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -36,6 +39,7 @@ export default function AdminGalleryPage() {
     const { data, error } = await supabase
       .from('school_gallery_items')
       .select('id,media_type,title,media_url,storage_path,created_at')
+      .eq('media_type', mediaType)
       .order('media_type')
       .order('sort_order')
       .order('created_at', { ascending: false });
@@ -46,7 +50,7 @@ export default function AdminGalleryPage() {
     }
     setItems(data || []);
     return true;
-  }, [t]);
+  }, [mediaType, t]);
 
   useEffect(() => {
     let active = true;
@@ -72,50 +76,61 @@ export default function AdminGalleryPage() {
     setSaving(true);
     setMessage('');
     let uploadedPath: string | null = null;
-    let mediaUrl = videoUrl.trim();
+    let mediaUrl = editing?.media_type === 'photo' ? editing.media_url : videoUrl.trim();
+    let storagePath = editing?.media_type === 'photo' ? editing.storage_path : null;
 
     try {
       if (!title.trim()) throw new Error(t('Judul/keterangan wajib diisi.', 'A title or caption is required.'));
       if (mediaType === 'photo') {
-        if (!file) throw new Error(t('Pilih foto terlebih dahulu.', 'Choose a photo first.'));
-        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+        if (!file && !editing) throw new Error(t('Pilih foto terlebih dahulu.', 'Choose a photo first.'));
+        if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
           throw new Error(t('Foto harus berupa JPG, PNG, atau WebP.', 'Photos must be JPG, PNG, or WebP.'));
         }
-        if (file.size > 10 * 1024 * 1024) {
+        if (file && file.size > 10 * 1024 * 1024) {
           throw new Error(t('Ukuran foto maksimal 10 MB.', 'Photos must be 10 MB or smaller.'));
         }
-        const uploaded = await uploadSchoolImage(file, 'galeri');
-        uploadedPath = uploaded.filePath;
-        mediaUrl = uploaded.publicUrl;
+        if (file) {
+          const uploaded = await uploadSchoolImage(file, 'galeri');
+          uploadedPath = uploaded.filePath;
+          storagePath = uploaded.filePath;
+          mediaUrl = uploaded.publicUrl;
+        }
       } else if (!mediaUrl || !getYouTubeVideoId(mediaUrl)) {
         throw new Error(t('Masukkan tautan video YouTube yang valid.', 'Enter a valid YouTube video link.'));
       }
 
-      const result = await supabase.from('school_gallery_items').insert({
+      const payload = {
         media_type: mediaType,
         title: title.trim(),
         media_url: mediaUrl,
-        storage_path: uploadedPath,
-      });
-      if (result.error) {
-        if (uploadedPath) {
-          const { error: cleanupError } = await supabase.storage.from('school-media').remove([uploadedPath]);
-          if (cleanupError) console.error('Failed to clean up an unlisted gallery photo:', cleanupError);
-        }
-        throw result.error;
-      }
+        storage_path: storagePath,
+      };
+      const result = editing
+        ? await supabase.from('school_gallery_items').update(payload).eq('id', editing.id)
+        : await supabase.from('school_gallery_items').insert(payload);
+      if (result.error) throw result.error;
 
+      const cleanupSucceeded = !editing?.storage_path || !file || await deleteSchoolImage(editing.storage_path);
       setTitle('');
       setVideoUrl('');
       setFile(null);
+      setEditing(null);
       form.reset();
       const refreshed = await load();
-      setMessage(refreshed
-        ? t('Konten galeri berhasil ditambahkan.', 'Gallery item added successfully.')
-        : t('Konten galeri berhasil ditambahkan, tetapi daftar belum dapat diperbarui.', 'Gallery item was added, but the list could not be refreshed.'));
+      const savedMessage = refreshed
+        ? editing
+          ? t('Konten galeri berhasil diperbarui.', 'Gallery item updated successfully.')
+          : t('Konten galeri berhasil ditambahkan.', 'Gallery item added successfully.')
+        : editing
+          ? t('Konten galeri berhasil diperbarui, tetapi daftar belum dapat diperbarui.', 'Gallery item was updated, but the list could not be refreshed.')
+          : t('Konten galeri berhasil ditambahkan, tetapi daftar belum dapat diperbarui.', 'Gallery item was added, but the list could not be refreshed.');
+      setMessage(cleanupSucceeded
+        ? savedMessage
+        : `${savedMessage} ${t('Foto lama belum berhasil dihapus dari penyimpanan.', 'The old photo could not be deleted from storage.')}`);
       setFormOpen(false);
     } catch (error) {
       console.error('Failed to save school gallery item:', error);
+      if (uploadedPath) await deleteSchoolImage(uploadedPath);
       setMessage(error instanceof Error ? error.message : t('Konten galeri belum berhasil disimpan.', 'The gallery item could not be saved.'));
     } finally {
       setSaving(false);
@@ -123,7 +138,10 @@ export default function AdminGalleryPage() {
   };
 
   const remove = async (item: GalleryItem) => {
-    if (!window.confirm(t(`Hapus “${item.title}” dari galeri?`, `Remove “${item.title}” from the gallery?`))) return;
+    const confirmation = item.media_type === 'photo'
+      ? t(`Hapus foto “${item.title}” dari galeri?`, `Remove photo “${item.title}” from the gallery?`)
+      : t(`Hapus video YouTube “${item.title}” dari galeri?`, `Remove YouTube video “${item.title}” from the gallery?`);
+    if (!window.confirm(confirmation)) return;
     setBusyId(item.id);
     setMessage('');
 
@@ -136,14 +154,29 @@ export default function AdminGalleryPage() {
     }
 
     setItems((current) => current.filter((currentItem) => currentItem.id !== item.id));
-    if (item.storage_path) {
-      const { error: storageError } = await supabase.storage.from('school-media').remove([item.storage_path]);
-      if (storageError) {
-        console.error('Gallery record deleted but its photo could not be removed from storage:', storageError);
-        setMessage(t('Konten sudah dihapus, tetapi file foto belum berhasil dibersihkan dari penyimpanan.', 'The gallery item was removed, but its image file could not be deleted from storage.'));
-      }
+    const cleanupSucceeded = !item.storage_path || await deleteSchoolImage(item.storage_path);
+    if (!cleanupSucceeded) {
+      setMessage(t('Konten sudah dihapus, tetapi file foto belum berhasil dibersihkan dari penyimpanan.', 'The gallery item was removed, but its image file could not be deleted from storage.'));
     }
     setBusyId('');
+  };
+
+  const openAddForm = () => {
+    setMessage('');
+    setEditing(null);
+    setTitle('');
+    setVideoUrl('');
+    setFile(null);
+    setFormOpen(true);
+  };
+
+  const openEditForm = (item: GalleryItem) => {
+    setMessage('');
+    setEditing(item);
+    setTitle(item.title);
+    setVideoUrl(item.media_type === 'video' ? item.media_url : '');
+    setFile(null);
+    setFormOpen(true);
   };
 
   return (
@@ -153,11 +186,13 @@ export default function AdminGalleryPage() {
         <header className="flex flex-col items-start justify-between gap-4 border-b border-slate-200/70 pb-5 dark:border-white/10 sm:flex-row sm:items-end">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-sky-400">{t('Dokumentasi Sekolah', 'School Documentation')}</p>
-            <h1 className="mt-2 text-2xl font-black text-blue-950 dark:text-white sm:text-3xl">{t('Kelola Galeri', 'Manage Gallery')}</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{t('Tambahkan foto dan video YouTube yang akan tampil pada halaman galeri publik.', 'Add photos and YouTube videos to the public gallery pages.')}</p>
+            <h1 className="mt-2 text-2xl font-black text-blue-950 dark:text-white sm:text-3xl">{mediaType === 'photo' ? t('Kelola Galeri Foto', 'Manage Photo Gallery') : t('Kelola Video YouTube', 'Manage YouTube Videos')}</h1>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{mediaType === 'photo'
+              ? t('Kelola foto kegiatan sekolah yang tampil di galeri foto.', 'Manage school photos shown in the photo gallery.')
+              : t('Kelola tautan video YouTube. Thumbnail diambil otomatis dari YouTube.', 'Manage YouTube video links. Thumbnails are loaded automatically from YouTube.')}</p>
           </div>
-          <button type="button" onClick={() => { setMessage(''); setFormOpen(true); }} className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-800">
-            {t('Tambah konten', 'Add content')}
+          <button type="button" onClick={openAddForm} className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-800">
+            {mediaType === 'photo' ? t('Tambah Foto', 'Add Photo') : t('Tambah Video', 'Add Video')}
           </button>
         </header>
 
@@ -167,57 +202,83 @@ export default function AdminGalleryPage() {
           <div className="admin-loading" role="status"><span>{t('Memuat galeri…', 'Loading gallery…')}</span></div>
         ) : (
           <section className="rounded-2xl border border-slate-200/80 bg-white/85 p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-7">
-            <h2 className="text-lg font-black text-slate-950 dark:text-white">{t('Konten yang dikelola', 'Managed content')} ({items.length})</h2>
-            <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{t('Foto bawaan website tetap tampil. Item di bawah adalah foto/video yang ditambahkan dari admin.', 'Existing site photos remain visible. Items below are photos/videos added through admin.')}</p>
+            <h2 className="text-lg font-black text-slate-950 dark:text-white">{mediaType === 'photo' ? t('Foto yang dikelola', 'Managed photos') : t('Video yang dikelola', 'Managed videos')} ({items.length})</h2>
+            {mediaType === 'video' && <p className="mt-2 text-xs leading-5 text-slate-500 dark:text-slate-400">{t('Cukup tempel tautan YouTube saat menambah atau mengedit video. Thumbnail akan mengikuti video secara otomatis.', 'Paste a YouTube link when adding or editing a video. Its thumbnail will update automatically.')}</p>}
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {items.map((item) => (
+              {items.map((item) => {
+                const videoId = item.media_type === 'video' ? getYouTubeVideoId(item.media_url) : null;
+                return (
                 <article key={item.id} className="min-w-0 overflow-hidden rounded-xl border border-slate-200/80 dark:border-white/10">
-                  {item.media_type === 'photo' && <img src={item.media_url} alt="" className="aspect-video w-full bg-slate-100 object-cover dark:bg-slate-900" />}
+                  {item.media_type === 'photo' ? (
+                    <img src={item.media_url} alt={item.title} className="aspect-video w-full bg-slate-100 object-cover dark:bg-slate-900" />
+                  ) : videoId ? (
+                    <img src={`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`} alt="" className="aspect-video w-full bg-slate-100 object-cover dark:bg-slate-900" />
+                  ) : (
+                    <div className="flex aspect-video items-center justify-center bg-slate-100 text-xs text-slate-500 dark:bg-slate-900 dark:text-slate-400">{t('Thumbnail tidak tersedia', 'Thumbnail unavailable')}</div>
+                  )}
                   <div className="flex items-start justify-between gap-3 p-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-sky-300">{item.media_type === 'photo' ? t('Foto', 'Photo') : t('Video', 'Video')}</p>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-sky-300">{mediaType === 'photo' ? t('Foto', 'Photo') : t('Video YouTube', 'YouTube video')}</p>
                       <h3 className="mt-1 break-words text-sm font-bold">{item.title}</h3>
                       {item.media_type === 'video' && <a href={item.media_url} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-slate-500 underline dark:text-slate-400">{item.media_url}</a>}
                     </div>
-                    <button type="button" disabled={busyId === item.id} onClick={() => void remove(item)} className="min-h-10 shrink-0 rounded-lg px-3 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-400/10">
-                      {t('Hapus', 'Delete')}
-                    </button>
+                    <div className="flex shrink-0 gap-1">
+                      <button type="button" disabled={busyId === item.id} onClick={() => openEditForm(item)} className="min-h-10 rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100 disabled:opacity-50 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300 dark:hover:bg-sky-400/20">{t('Edit', 'Edit')}</button>
+                      <button type="button" disabled={busyId === item.id} onClick={() => void remove(item)} className="min-h-10 rounded-md border border-red-200 bg-red-50 px-3 text-xs font-bold text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300 dark:hover:bg-red-400/20">
+                        {mediaType === 'photo' ? t('Hapus Foto', 'Delete Photo') : t('Hapus Video', 'Delete Video')}
+                      </button>
+                    </div>
                   </div>
                 </article>
-              ))}
-              {items.length === 0 && <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 sm:col-span-2">{t('Belum ada konten tambahan.', 'No additional content yet.')}</p>}
+                );
+              })}
+              {items.length === 0 && <p className="py-8 text-center text-sm text-slate-500 dark:text-slate-400 sm:col-span-2">{mediaType === 'photo' ? t('Belum ada foto.', 'No photos yet.') : t('Belum ada video.', 'No videos yet.')}</p>}
             </div>
           </section>
         )}
 
-        <AdminFormModal open={formOpen} title={t('Tambah konten', 'Add content')} onClose={() => setFormOpen(false)}>
+        <AdminFormModal open={formOpen} title={editing
+          ? mediaType === 'photo' ? t('Edit Foto', 'Edit Photo') : t('Edit Video YouTube', 'Edit YouTube Video')
+          : mediaType === 'photo' ? t('Tambah Foto', 'Add Photo') : t('Tambah Video YouTube', 'Add YouTube Video')} onClose={() => setFormOpen(false)}>
             <form onSubmit={save} className="space-y-4">
               {message && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-950/40 dark:text-red-300">{message}</p>}
-              <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
-                {t('Jenis konten', 'Content type')}
-                <select value={mediaType} onChange={(event) => setMediaType(event.target.value as 'photo' | 'video')} className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-sm text-slate-900 dark:border-white/15 dark:bg-slate-950 dark:text-white">
-                  <option value="photo">{t('Foto', 'Photo')}</option>
-                  <option value="video">{t('Video YouTube', 'YouTube video')}</option>
-                </select>
-              </label>
+              <p className="w-fit rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300">
+                {mediaType === 'photo' ? t('Jenis: Foto', 'Type: Photo') : t('Jenis: Video YouTube', 'Type: YouTube video')}
+              </p>
               <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
                 {t('Judul / keterangan', 'Title / caption')}
                 <input required maxLength={180} value={title} onChange={(event) => setTitle(event.target.value)} className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm" />
               </label>
               {mediaType === 'photo' ? (
-                <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
-                  {t('Pilih foto', 'Choose a photo')}
-                  <input required type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => setFile(event.target.files?.[0] || null)} className="min-h-11 w-full rounded-xl border border-slate-300/80 bg-white p-2 text-sm text-slate-700 dark:border-white/15 dark:bg-slate-950 dark:text-slate-200" />
-                  <span className="font-normal leading-5 text-slate-500 dark:text-slate-400">{t('JPG, PNG, atau WebP · maksimal 10 MB.', 'JPG, PNG, or WebP · up to 10 MB.')}</span>
-                </label>
+                <div className="space-y-2">
+                  <AdminImageField
+                    label={t('Foto galeri', 'Gallery photo')}
+                    imageUrl={editing?.media_type === 'photo' ? editing.media_url : null}
+                    file={file}
+                    removeImage={false}
+                    allowRemoveImage={false}
+                    onFileChange={setFile}
+                    onRemoveImage={() => setFile(null)}
+                    onRestoreImage={() => {}}
+                    unavailableLabel={t('Pilih foto untuk ditambahkan', 'Choose a photo to add')}
+                    chooseImageLabel={editing ? t('Pilih foto pengganti (opsional)', 'Choose a replacement photo (optional)') : t('Pilih foto', 'Choose a photo')}
+                    removeImageLabel={t('Hapus pilihan', 'Clear selection')}
+                    restoreImageLabel={t('Batalkan', 'Cancel')}
+                  />
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{t('JPG, PNG, atau WebP · maksimal 10 MB.', 'JPG, PNG, or WebP · up to 10 MB.')}</p>
+                </div>
               ) : (
-                <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
-                  {t('Tautan video YouTube', 'YouTube video link')}
-                  <input required type="url" value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="https://youtu.be/…" className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm" />
-                </label>
+                <div className="space-y-3">
+                  <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                    {t('Tautan video YouTube', 'YouTube video link')}
+                    <input required type="url" value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="https://youtu.be/…" className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm" />
+                  </label>
+                  <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">{t('Cukup tempel tautan YouTube. Thumbnail akan diambil otomatis dari YouTube.', 'Paste the YouTube link. Its thumbnail will be loaded automatically from YouTube.')}</p>
+                  {getYouTubeVideoId(videoUrl) && <img src={`https://i.ytimg.com/vi/${getYouTubeVideoId(videoUrl)}/hqdefault.jpg`} alt="" className="aspect-video w-full rounded-xl bg-slate-100 object-cover dark:bg-slate-900" />}
+                </div>
               )}
               <button type="submit" disabled={saving} className="min-h-11 w-full rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60">
-                {saving ? t('Menyimpan…', 'Saving…') : t('Tambahkan ke galeri', 'Add to gallery')}
+                {saving ? t('Menyimpan…', 'Saving…') : editing ? t('Simpan perubahan', 'Save changes') : t('Tambahkan ke galeri', 'Add to gallery')}
               </button>
             </form>
         </AdminFormModal>

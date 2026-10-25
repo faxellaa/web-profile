@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
+import { DEFAULT_EXTRACURRICULARS, orderExtracurriculars } from '@/lib/school-content';
 
 type Extracurricular = {
   id: string;
@@ -33,7 +34,7 @@ export default function ExtracurricularsPage() {
         console.error('Failed to load extracurricular activities:', error);
         setLoadError(true);
       } else {
-        setActivities(data ?? []);
+        setActivities(orderExtracurriculars(data?.length ? data : DEFAULT_EXTRACURRICULARS));
       }
       setLoading(false);
     }

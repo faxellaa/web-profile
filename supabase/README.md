@@ -2,14 +2,18 @@
 
 ## SPMB applications and gallery
 
-Apply `migrations/004_spmb_and_gallery.sql` to the Supabase project before using the updated SPMB form or gallery admin.
+Apply `migrations/004_spmb_and_gallery.sql` to the Supabase project before using the updated SPMB form or gallery admin. Apply `migrations/010_school_media_and_admin_access.sql` after the existing school content tables are created to enable admin-only writes and image uploads.
+Apply `migrations/011_facilities_crud.sql` after `public.facilities` exists. It grants public read access and admin-only create, update, and delete access for facilities, and adds the storage path column used by the admin form.
 
-The migration:
+The migrations:
 
 - Creates a private `spmb-documents` bucket, limited to PDF/JPG/PNG files up to 10 MB each.
+- Creates a public `school-media` bucket for JPG/PNG/WebP images up to 10 MB. Only school admins can upload, replace, or delete files.
 - Creates `spmb_applications` with public inserts handled only by the server endpoint; reads and status updates require a school admin.
 - Creates `school_gallery_items`; gallery items are publicly readable and writable only by a school admin.
 - Limits content mutations on existing school data tables to school admins.
+
+Videos in the admin gallery are added as YouTube links, not uploaded as video files.
 
 Set `SUPABASE_URL` and `SUPABASE_SECRET_KEY` in the server environment. `SUPABASE_SECRET_KEY` is a server-only secret and must never use a `NEXT_PUBLIC_` name or be exposed to browser code. The public SPMB endpoint returns `503` until both values are configured.
 

@@ -1,16 +1,20 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
+import { CheckCircle2, MessageCircle } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 
 const fieldClassName =
   'min-h-12 w-full rounded-xl border border-slate-300/80 bg-white/80 px-4 py-3 text-base text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950/50 dark:text-white dark:placeholder:text-slate-500 sm:text-sm';
+const REQUEST_TIMEOUT_MS = 150_000;
+const SCHOOL_WHATSAPP_NUMBER = '6285147777650';
 
 export default function SpmbRegistrationForm() {
   const { t } = useLang();
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
+  const [whatsappUrl, setWhatsappUrl] = useState('');
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -18,31 +22,39 @@ export default function SpmbRegistrationForm() {
     setSubmitting(true);
     setMessage('');
     setIsSuccess(false);
+    setWhatsappUrl('');
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
       const response = await fetch('/api/spmb', {
         method: 'POST',
         body: new FormData(form),
+        signal: controller.signal,
       });
-      const result = (await response.json()) as { ok?: boolean; error?: string };
-      if (!response.ok || !result.ok) {
+      const result = (await response.json()) as { ok?: boolean; error?: string; applicationId?: string };
+      if (!response.ok || !result.ok || !result.applicationId) {
         setMessage(result.error || t('Pendaftaran belum berhasil dikirim.', 'The registration could not be submitted.'));
         return;
       }
 
+      const submittedName = new FormData(form).get('fullName');
+      const applicantName = typeof submittedName === 'string' ? submittedName.trim() : '';
+      const whatsappMessage = t(
+        `Assalamu’alaikum, saya orang tua/wali dari ${applicantName}. Saya sudah mengirim pendaftaran SPMB SMP Muhammadiyah Kembaran. Mohon konfirmasi bahwa pendaftaran kami sudah diterima. Terima kasih.`,
+        `Hello, I am the parent/guardian of ${applicantName}. I have submitted an SPMB application to SMP Muhammadiyah Kembaran. Please confirm that you have received our application. Thank you.`,
+      );
       form.reset();
+      setWhatsappUrl(`https://wa.me/${SCHOOL_WHATSAPP_NUMBER}?text=${encodeURIComponent(whatsappMessage)}`);
       setIsSuccess(true);
-      setMessage(t(
-        'Pendaftaran berhasil dikirim. Data dan berkas tersimpan dengan aman untuk diperiksa panitia.',
-        'Registration submitted. Your information and documents are securely stored for the committee to review.',
-      ));
     } catch (error) {
       console.error('Failed to submit SPMB application:', error);
-      setMessage(t(
-        'Koneksi sedang bermasalah. Periksa internet lalu coba kirim kembali.',
-        'The connection failed. Check your internet and try submitting again.',
-      ));
+      const timedOut = error instanceof Error && error.name === 'AbortError';
+      setMessage(timedOut
+        ? t('Waktu pengiriman terlalu lama. Status pendaftaran belum dapat dipastikan. Hubungi panitia sebelum mencoba mengirim ulang.', 'The request took too long and the registration status is unknown. Contact the committee before trying again.')
+        : t('Koneksi bermasalah. Status pendaftaran belum dapat dipastikan. Hubungi panitia sebelum mencoba mengirim ulang.', 'The connection failed and the registration status is unknown. Contact the committee before trying again.'));
     } finally {
+      window.clearTimeout(timeoutId);
       setSubmitting(false);
     }
   };
@@ -64,19 +76,50 @@ export default function SpmbRegistrationForm() {
         </p>
       </header>
 
-      {message && (
-        <p
-          role={isSuccess ? 'status' : 'alert'}
-          className={`mb-6 rounded-xl border p-4 text-sm leading-6 ${
-            isSuccess
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200'
-              : 'border-red-200 bg-red-50 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200'
-          }`}
-        >
-          {message}
-        </p>
-      )}
-
+      {isSuccess ? (
+        <div role="status" aria-live="polite" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-center dark:border-emerald-400/20 dark:bg-emerald-400/10 sm:p-10">
+          <CheckCircle2 aria-hidden="true" className="mx-auto h-14 w-14 text-emerald-600 dark:text-emerald-300" />
+          <h3 className="mt-4 text-2xl font-black text-emerald-900 dark:text-emerald-100">
+            {t('Pendaftaran berhasil dikirim!', 'Registration submitted successfully!')}
+          </h3>
+          <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-emerald-800 dark:text-emerald-200">
+            {t('Data dan berkas sudah tersimpan. Kamu bisa mengirim konfirmasi ke WhatsApp pusat bantuan sekolah melalui tombol berikut.', 'Your information and documents have been saved. You can confirm your submission with the school via WhatsApp using the button below.')}
+          </p>
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mx-auto mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+          >
+            <MessageCircle aria-hidden="true" className="h-5 w-5" />
+            {t('Konfirmasi pendaftaran via WhatsApp sekolah', 'Confirm registration via school WhatsApp')}
+          </a>
+          <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-200">
+            {t('Pesan sudah disiapkan otomatis. Periksa lalu tekan Kirim di WhatsApp.', 'The message is prefilled. Review it, then tap Send in WhatsApp.')}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSuccess(false);
+              setWhatsappUrl('');
+            }}
+            className="mx-auto mt-6 flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-800"
+          >
+            {t('Isi pendaftaran lain', 'Submit another registration')}
+          </button>
+        </div>
+      ) : (
+        <>
+          {message && (
+            <p role="alert" className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">
+              {message}
+            </p>
+          )}
+          {submitting && (
+            <p role="status" aria-live="polite" className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800 dark:border-sky-400/20 dark:bg-sky-400/10 dark:text-sky-200">
+              {t('Mengirim data dan menyimpan berkas. Mohon tunggu dan jangan tutup halaman ini.', 'Submitting your information and saving files. Please wait and keep this page open.')}
+            </p>
+          )}
       <form onSubmit={submit} className="space-y-7">
         <input
           name="website"
@@ -95,6 +138,21 @@ export default function SpmbRegistrationForm() {
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             {t('Nama panggilan', 'Nickname')} *
             <input name="nickname" required maxLength={80} className={fieldClassName} />
+          </label>
+          <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 md:col-span-2">
+            {t('Nomor WhatsApp orang tua/wali', 'Parent/guardian WhatsApp number')} *
+            <input
+              name="guardianWhatsapp"
+              type="tel"
+              required
+              maxLength={30}
+              autoComplete="tel"
+              placeholder={t('Contoh: 081234567890 atau +62 81234567890', 'Example: 081234567890 or +62 81234567890')}
+              className={fieldClassName}
+            />
+            <span className="text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">
+              {t('Pastikan nomor aktif dan dapat menerima pesan WhatsApp. Panitia mengirim kabar secara manual setelah memeriksa pendaftaran.', 'Use an active number that can receive WhatsApp messages. The committee will send updates manually after reviewing the application.')}
+            </span>
           </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 md:col-span-2">
             {t('Asal sekolah', 'Previous school')}
@@ -166,8 +224,8 @@ export default function SpmbRegistrationForm() {
           />
           <span>
             {t(
-              'Saya orang tua/wali calon siswa dan menyetujui data ini digunakan untuk proses pendaftaran SPMB.',
-              'I am the applicant’s parent/guardian and consent to this information being used for the SPMB admission process.',
+              'Saya orang tua/wali calon siswa dan menyetujui data ini digunakan untuk proses pendaftaran serta dihubungi melalui WhatsApp terkait SPMB.',
+              'I am the applicant’s parent/guardian and consent to this information being used for SPMB processing and to be contacted by WhatsApp about the application.',
             )}
           </span>
         </label>
@@ -188,6 +246,8 @@ export default function SpmbRegistrationForm() {
           </button>
         </div>
       </form>
+        </>
+      )}
     </section>
   );
 }

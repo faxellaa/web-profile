@@ -10,6 +10,7 @@ import { HEADMASTER_NAME } from '@/lib/school-content';
 
 type OverviewData = {
   achievements: { id: string; title: string; category: string }[];
+  activities: { id: string; action: 'insert' | 'update' | 'delete'; entity_type: string; entity_title: string; created_at: string }[];
   teachers: { id: string; name: string; role: string }[];
   extracurriculars: { id: string; name: string; tag: string }[];
   facilities: { id: string; name: string }[];
@@ -20,6 +21,7 @@ type OverviewData = {
 
 const emptyData: OverviewData = {
   achievements: [],
+  activities: [],
   teachers: [],
   extracurriculars: [],
   facilities: [],
@@ -39,17 +41,15 @@ const cards = [
 
 export default function AdminDashboard() {
   const router = useRouter();
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const [data, setData] = useState<OverviewData>(emptyData);
   const [loading, setLoading] = useState(true);
-  const [loadWarning, setLoadWarning] = useState('');
 
   useEffect(() => {
     const loadDashboard = async () => {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
         console.error('Failed to read dashboard admin session:', sessionError);
-        setLoadWarning(t('Sesi admin tidak dapat diverifikasi.', 'The admin session could not be verified.'));
         setLoading(false);
         return;
       }
@@ -58,8 +58,9 @@ export default function AdminDashboard() {
         return;
       }
 
-      const [achievements, teachers, extracurriculars, facilities, stats, applications, gallery] = await Promise.all([
+      const [achievements, activities, teachers, extracurriculars, facilities, stats, applications, gallery] = await Promise.all([
         supabase.from('articles').select('id,title,category').eq('category', 'Prestasi Siswa').order('created_at', { ascending: false }),
+        supabase.from('admin_activity_log').select('id,action,entity_type,entity_title,created_at').order('created_at', { ascending: false }).limit(8),
         supabase.from('teachers').select('id,name,role').order('sort_order').order('name'),
         supabase.from('extracurriculars').select('id,name,tag').order('created_at', { ascending: false }),
         supabase.from('facilities').select('id,name'),
@@ -70,6 +71,7 @@ export default function AdminDashboard() {
 
       const failedQueries = [
         achievements.error && 'achievements',
+        activities.error && 'admin_activity_log',
         teachers.error && 'teachers',
         extracurriculars.error && 'extracurriculars',
         facilities.error && 'facilities',
@@ -79,11 +81,11 @@ export default function AdminDashboard() {
       ].filter(Boolean);
       if (failedQueries.length) {
         console.error('Some admin dashboard data could not be loaded:', failedQueries);
-        setLoadWarning(t('Sebagian data belum tersedia. Pastikan migrasi terbaru sudah diterapkan.', 'Some data is unavailable. Confirm the latest database migrations have been applied.'));
       }
 
       setData({
         achievements: achievements.data || [],
+        activities: activities.data || [],
         teachers: teachers.data || [],
         extracurriculars: extracurriculars.data || [],
         facilities: facilities.data || [],
@@ -98,7 +100,7 @@ export default function AdminDashboard() {
       setLoading(false);
     };
     void loadDashboard();
-  }, [router, t]);
+  }, [router]);
 
   if (loading) return <div className="admin-loading" role="status" aria-label={t('Memuat dashboard', 'Loading dashboard')}><span>{t('Memuat data admin...', 'Loading admin data...')}</span></div>;
 
@@ -112,7 +114,47 @@ export default function AdminDashboard() {
           <p className="mx-auto mt-2 max-w-2xl text-sm leading-relaxed text-slate-500 dark:text-slate-400">{t('Pantau seluruh data yang tersimpan dan buka menu terkait untuk melakukan perubahan.', 'Monitor all stored data and open the related menu to make changes.')}</p>
         </header>
 
-        {loadWarning && <p role="status" className="rounded-xl border border-amber-300/70 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-100">{loadWarning}</p>}
+        <section>
+          <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5 sm:p-7">
+            <div className="flex items-center justify-between border-b border-slate-200/70 pb-4 dark:border-white/10"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400">{t('Informasi pimpinan', 'Leadership information')}</p><h2 className="mt-1 text-lg font-black text-blue-950 dark:text-white">{t('Sambutan Kepala Sekolah', "Principal's Message")}</h2></div><Link href="/admin/guru-staff" className="text-xs font-bold text-blue-700 dark:text-sky-400">{t('Edit', 'Edit')}</Link></div>
+            <div className="mt-5 flex items-center gap-4">{data.headmaster.photo_url ? <img src={data.headmaster.photo_url} alt={data.headmaster.name} className="h-16 w-16 rounded-2xl object-cover" /> : <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-xl font-black text-blue-700 dark:bg-slate-800 dark:text-sky-300">{data.headmaster.name.charAt(0)}</div>}<div><p className="font-bold text-slate-700 dark:text-slate-200">{data.headmaster.name}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{data.headmaster.speech ? t('Sambutan sudah diisi', 'Message has been filled in') : t('Sambutan belum diisi', 'Message has not been filled in')}</p></div></div>
+          </div>
+        </section>
+
+        <section>
+          <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5 sm:p-7">
+            <div className="border-b border-slate-200/70 pb-4 dark:border-white/10"><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400">{t('Data terbaru', 'Latest data')}</p><h2 className="mt-1 text-lg font-black text-blue-950 dark:text-white">{t('Aktivitas Terbaru', 'Recent Activity')}</h2><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{t('Perubahan data yang dilakukan admin.', 'Changes made by an admin.')}</p></div>
+            <div className="divide-y divide-slate-200/70 dark:divide-white/10">
+              {data.activities.map((activity) => {
+                const actionLabel = activity.action === 'insert'
+                  ? t('Ditambahkan', 'Added')
+                  : activity.action === 'update'
+                    ? t('Diubah', 'Updated')
+                    : t('Dihapus', 'Deleted');
+                const actionStyle = activity.action === 'insert'
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300'
+                  : activity.action === 'update'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-400/10 dark:text-sky-300'
+                    : 'bg-red-50 text-red-700 dark:bg-red-400/10 dark:text-red-300';
+                return (
+                  <div key={activity.id} className="flex flex-col gap-1 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-slate-700 dark:text-slate-200">
+                        <span className={`rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${actionStyle}`}>{actionLabel}</span>
+                        <span>{activity.entity_type}</span>
+                      </p>
+                      <p className="mt-1 break-words text-sm text-slate-600 dark:text-slate-300">{activity.entity_title}</p>
+                    </div>
+                    <time dateTime={activity.created_at} className="shrink-0 text-xs text-slate-500 dark:text-slate-400">
+                      {new Date(activity.created_at).toLocaleString(lang === 'id' ? 'id-ID' : 'en-US', { dateStyle: 'medium', timeStyle: 'short' })}
+                    </time>
+                  </div>
+                );
+              })}
+              {data.activities.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{t('Belum ada aktivitas admin yang tercatat.', 'No admin activity has been recorded yet.')}</p>}
+            </div>
+          </div>
+        </section>
 
         <section className="grid grid-cols-1 gap-5">
           {cards.map((card) => (
@@ -124,17 +166,6 @@ export default function AdminDashboard() {
               <p className="shrink-0 text-base font-semibold text-blue-600 transition-colors group-hover:text-blue-800 dark:text-sky-400 dark:group-hover:text-sky-300">{t('Kelola data', 'Manage data')}</p>
             </Link>
           ))}
-        </section>
-
-        <section className="grid grid-cols-1 gap-6">
-          <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5 sm:p-7">
-            <div className="flex items-center justify-between border-b border-slate-200/70 pb-4 dark:border-white/10"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400">{t('Data terbaru', 'Latest data')}</p><h2 className="mt-1 text-lg font-black text-blue-950 dark:text-white">{t('Prestasi Terbaru', 'Latest Achievements')}</h2></div><Link href="/admin/prestasi" className="text-xs font-bold text-blue-700 dark:text-sky-400">{t('Kelola', 'Manage')}</Link></div>
-            <div className="divide-y divide-slate-200/70 dark:divide-white/10">{data.achievements.slice(0, 5).map((item) => <div key={item.id} className="py-3"><p className="text-sm font-bold text-slate-700 dark:text-slate-200">{item.title}</p></div>)}{data.achievements.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{t('Belum ada prestasi.', 'No achievements yet.')}</p>}</div>
-          </div>
-          <div className="rounded-2xl border border-slate-200/80 bg-white/80 p-5 shadow-sm dark:border-white/10 dark:bg-white/5 sm:p-7">
-            <div className="flex items-center justify-between border-b border-slate-200/70 pb-4 dark:border-white/10"><div><p className="text-xs font-bold uppercase tracking-wider text-blue-600 dark:text-sky-400">{t('Informasi pimpinan', 'Leadership information')}</p><h2 className="mt-1 text-lg font-black text-blue-950 dark:text-white">{t('Sambutan Kepala Sekolah', "Principal's Message")}</h2></div><Link href="/admin/guru-staff" className="text-xs font-bold text-blue-700 dark:text-sky-400">{t('Edit', 'Edit')}</Link></div>
-            <div className="mt-5 flex items-center gap-4">{data.headmaster.photo_url ? <img src={data.headmaster.photo_url} alt={data.headmaster.name} className="h-16 w-16 rounded-2xl object-cover" /> : <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 text-xl font-black text-blue-700 dark:bg-slate-800 dark:text-sky-300">{data.headmaster.name.charAt(0)}</div>}<div><p className="font-bold text-slate-700 dark:text-slate-200">{data.headmaster.name}</p><p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{data.headmaster.speech ? t('Sambutan sudah diisi', 'Message has been filled in') : t('Sambutan belum diisi', 'Message has not been filled in')}</p></div></div>
-          </div>
         </section>
 
       </div>

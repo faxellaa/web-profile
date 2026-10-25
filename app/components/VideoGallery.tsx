@@ -10,10 +10,11 @@ type VideoItem = {
   id: string;
   title: string;
   media_url: string;
+  thumbnailUrl?: string;
 };
 
 const FEATURED_VIDEOS: VideoItem[] = [
-  { id: 'IGIRUAZDsfU', title: 'Sudah pernah dengar kisah teladan Nabi yang berjudul "8 Dirham"?', media_url: 'https://youtu.be/IGIRUAZDsfU' },
+  { id: 'IGIRUAZDsfU', title: 'Sudah pernah dengar kisah teladan Nabi yang berjudul "8 Dirham"?', media_url: 'https://youtu.be/IGIRUAZDsfU', thumbnailUrl: 'https://i.ytimg.com/vi/IGIRUAZDsfU/maxresdefault.jpg' },
   { id: '-2Cz46PrI_A', title: 'Episode 1 KURMA - 4 Golongan orang yang dirindukan surga', media_url: 'https://youtu.be/-2Cz46PrI_A' },
   { id: '3qodDL0ZOLk', title: 'Pembelajaran Ber-KSE Mapel IPA kelas IX', media_url: 'https://youtu.be/3qodDL0ZOLk' },
   { id: '3jS7Ga8sFaw', title: 'Upacara Bendera memperingati HUT Kemerdekaan ke 79 Republik Indonesia pada 17 Agustus 2024 di Kramat', media_url: 'https://youtu.be/3jS7Ga8sFaw' },
@@ -45,18 +46,14 @@ export default function VideoGallery() {
           if (active) setLoadError(true);
         } else if (active) {
           const managedVideos = data || [];
-          const featuredIds = new Set(FEATURED_VIDEOS.map((video) => video.id));
-          const featuredVideos = FEATURED_VIDEOS.map((video) => {
-            const managedVersion = managedVideos.find(
-              (item) => getYouTubeVideoId(item.media_url) === video.id,
-            );
-            return managedVersion?.title ? { ...video, title: managedVersion.title } : video;
-          });
-          const additionalVideos = managedVideos.filter((video) => {
+          const seenVideoIds = new Set<string>();
+          const uniqueManagedVideos = managedVideos.filter((video) => {
             const videoId = getYouTubeVideoId(video.media_url);
-            return !videoId || !featuredIds.has(videoId);
+            if (!videoId || seenVideoIds.has(videoId)) return false;
+            seenVideoIds.add(videoId);
+            return true;
           });
-          setVideos([...featuredVideos, ...additionalVideos]);
+          setVideos(uniqueManagedVideos);
           setLoadError(false);
         }
       });
@@ -88,7 +85,7 @@ export default function VideoGallery() {
                 className="group relative block aspect-video overflow-hidden bg-slate-200 dark:bg-slate-900"
               >
                 <img
-                  src={`https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`}
+                  src={video.thumbnailUrl || `https://i.ytimg.com/vi/${video.videoId}/hqdefault.jpg`}
                   alt=""
                   loading="lazy"
                   referrerPolicy="strict-origin-when-cross-origin"

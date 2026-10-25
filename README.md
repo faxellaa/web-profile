@@ -40,9 +40,17 @@ npm run dev
 
 Buka `http://localhost:3000`. Query Supabase sudah digunakan oleh halaman beranda, profil, guru, dan dashboard admin. Untuk membuat tabel, jalankan SQL dari `supabase/migrations/` di Supabase SQL Editor atau melalui migration workflow Supabase.
 
+### Menambahkan Fasilitas Lapangan
+
+Jalankan `supabase/migrations/007_add_school_field.sql` di Supabase SQL Editor untuk menambahkan Lapangan. Jika tabel fasilitas hanya berisi sebagian data, jalankan `supabase/migrations/009_seed_default_facilities.sql` untuk menambahkan fasilitas bawaan yang belum ada tanpa membuat duplikat. Halaman publik juga melengkapi data fasilitas yang belum ada dengan daftar bawaan.
+
+### Memperbarui Ekstrakurikuler
+
+Jalankan `supabase/migrations/008_replace_school_extracurriculars.sql` di Supabase SQL Editor untuk mengganti daftar ekstrakurikuler menjadi English Club, IPM, Tapak Suci, Hizbul Wathan, dan Tahsin. Migrasi ini menghapus kegiatan lain yang tidak ada di daftar tersebut dan mengosongkan foto pada tiga nama lama yang disesuaikan. Foto dapat ditambahkan nanti melalui dashboard admin.
+
 ### Statistik Kunjungan Realtime
 
-Jalankan `supabase/migrations/002_realtime_site_analytics.sql` di Supabase SQL Editor untuk mengaktifkan pencatatan kunjungan dan pembaruan Realtime. Jalankan juga `supabase/migrations/005_weekly_visitor_stats.sql` untuk menampilkan tren 7 hari terakhir. Statistik menghitung page view halaman publik, bukan pengunjung unik; total dan harian mengikuti pencatatan yang sudah ada. Log mentah tidak dapat dibaca oleh role publik, dan fungsi tren mingguan hanya mengembalikan agregat tanggal.
+Jalankan migrasi `002_realtime_site_analytics.sql`, `005_weekly_visitor_stats.sql`, lalu `006_unique_visitor_analytics.sql` di Supabase SQL Editor. Migrasi 006 mengganti pencatatan menjadi pengunjung unik per browser/perangkat, mengabaikan localhost, dan mereset data pageview lama agar metrik tidak tercampur. Jalankan migrasi 006 sebelum deploy kode baru. Satu browser/perangkat dihitung maksimal sekali per hari; ini bukan hitungan orang unik, karena satu orang bisa memakai beberapa browser atau perangkat. Log mentah dan ID pengunjung tidak dapat dibaca oleh role publik; fungsi statistik hanya mengembalikan agregat.
 
 Untuk memperbarui nama kepala sekolah pada data tersimpan, jalankan `supabase/migrations/003_update_headmaster_name.sql` di Supabase SQL Editor. Tampilan publik dan admin mengenali nama lama sambil menunggu migrasi diterapkan.
 

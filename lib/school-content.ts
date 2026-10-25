@@ -42,12 +42,88 @@ export const DEFAULT_FACILITIES: SchoolFacility[] = [
     image_url: '/img/bahan/IMG_0643.jpeg',
   },
   {
+    id: 'administration-office',
+    name: 'Ruang Tata Usaha',
+    description: 'Ruang pelayanan administrasi dan pengelolaan tata usaha sekolah.',
+    image_url: '/img/bahan/IMG_0690.jpeg',
+  },
+  {
     id: 'multimedia-room',
     name: 'Ruang Multimedia',
     description: 'Ruang pembelajaran yang dilengkapi layar interaktif.',
     image_url: '/img/bahan/IMG_0645.jpeg',
   },
+  {
+    id: 'school-field',
+    name: 'Lapangan',
+    description: 'Area lapangan sekolah untuk mendukung kegiatan olahraga dan aktivitas siswa.',
+    image_url: '/img/bahan/IMG_0664.jpeg',
+  },
 ];
+
+export function mergeDefaultFacilities<T extends { name: string }>(facilities: T[]): Array<T | SchoolFacility> {
+  return facilities.length > 0 ? facilities : DEFAULT_FACILITIES;
+}
+
+export type SchoolExtracurricular = {
+  id: string;
+  name: string;
+  badge: string;
+  tag: string;
+  description: string;
+  image_url: string | null;
+};
+
+export const DEFAULT_EXTRACURRICULARS: SchoolExtracurricular[] = [
+  {
+    id: 'english-club',
+    name: 'English Club',
+    badge: 'EC',
+    tag: 'BAHASA',
+    description: 'Kegiatan untuk melatih kemampuan berbahasa Inggris, komunikasi, dan kepercayaan diri siswa.',
+    image_url: null,
+  },
+  {
+    id: 'ipm',
+    name: 'Ikatan Pelajar Muhammadiyah (IPM)',
+    badge: 'IPM',
+    tag: 'ORGANISASI',
+    description: 'Organisasi pelajar Muhammadiyah untuk mengembangkan kepemimpinan, tanggung jawab, dan dakwah siswa.',
+    image_url: null,
+  },
+  {
+    id: 'tapak-suci',
+    name: 'Tapak Suci',
+    badge: 'TS',
+    tag: 'BELA DIRI',
+    description: 'Kegiatan bela diri pencak silat untuk membina disiplin, kebugaran, dan karakter siswa.',
+    image_url: null,
+  },
+  {
+    id: 'hizbul-wathan',
+    name: 'Hizbul Wathan',
+    badge: 'HW',
+    tag: 'KEPANDUAN',
+    description: 'Kegiatan kepanduan untuk melatih kemandirian, kepemimpinan, dan ketangkasan siswa.',
+    image_url: null,
+  },
+  {
+    id: 'tahsin',
+    name: 'Tahsin',
+    badge: 'T',
+    tag: 'KEAGAMAAN',
+    description: 'Kegiatan untuk memperbaiki bacaan Al-Qur’an sesuai kaidah tajwid.',
+    image_url: null,
+  },
+];
+
+export function orderExtracurriculars<T extends { name: string }>(activities: T[]): T[] {
+  const order = new Map(DEFAULT_EXTRACURRICULARS.map((activity, index) => [activity.name.toLowerCase(), index]));
+  return [...activities].sort((a, b) =>
+    (order.get(a.name.trim().toLowerCase()) ?? Number.MAX_SAFE_INTEGER)
+    - (order.get(b.name.trim().toLowerCase()) ?? Number.MAX_SAFE_INTEGER),
+  );
+}
 
 export const SCHOOL_VISION_CONTEXT = 'Kurikulum Operasional Sekolah disusun oleh Satuan Pendidikan untuk memungkinkan penyesuaian program pendidikan dengan kebutuhan dan potensi yang ada di sekolah. Sekolah sebagai unit penyelenggara pendidikan juga harus memperhatikan perkembangan dan tantangan masa depan, di antaranya perkembangan ilmu pengetahuan dan teknologi, globalisasi yang memungkinkan cepatnya arus perubahan dan mobilitas antar- dan lintas sektor serta tempat, era informasi, pengaruh globalisasi terhadap perubahan perilaku dan moral manusia, berubahnya kesadaran masyarakat dan orang tua terhadap pendidikan, serta era perdagangan bebas. Tantangan dan peluang itu harus direspons oleh SMP Muhammadiyah Kembaran sehingga visi sekolah diharapkan sesuai dengan arah perkembangan tersebut. Profil Pelajar Pancasila menjadi acuan dalam menyusun visi, misi, dan tujuan sekolah. Visi merupakan cita-cita bersama pada masa mendatang dari warga sekolah yang dirumuskan berdasarkan masukan seluruh warga sekolah.';
 

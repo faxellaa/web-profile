@@ -14,29 +14,30 @@ type AdminNavItem =
 
 export default function AdminNavbar() {
   const { lang, setLang, t } = useLang();
-  const links = [
-    { href: '/admin/dashboard', label: t('Dashboard', 'Dashboard') },
-    { href: '/admin/spmb', label: t('Pendaftar SPMB', 'SPMB Applicants') },
-    { href: '/admin/galeri', label: t('Galeri Foto & Video', 'Photo & Video Gallery') },
-    { href: '/admin/prestasi', label: t('Prestasi', 'Achievements') },
-    { href: '/admin/guru-staff', label: t('Tenaga Kerja', 'School Staff') },
-    { href: '/admin/ekstrakulikuler', label: t('Ekstrakulikuler', 'Extracurriculars') },
-    { href: '/admin/sarana-prasarana', label: t('Sarana & Prasarana', 'Facilities') },
-    { href: '/admin/surat-masuk', label: t('Surat Masuk', 'Incoming Mail') },
+  const dashboardLink = { href: '/admin/dashboard', label: t('Dashboard', 'Dashboard') };
+  const applicantLink = { href: '/admin/spmb', label: t('Pendaftar SPMB', 'SPMB Applicants') };
+  const galleryLinks = [
+    { href: '/admin/galeri/foto', label: t('Galeri Foto', 'Photo Gallery') },
+    { href: '/admin/galeri/video', label: t('Galeri Video', 'Video Gallery') },
   ];
+  const achievementLink = { href: '/admin/prestasi', label: t('Prestasi', 'Achievements') };
+  const staffLink = { href: '/admin/guru-staff', label: t('Tenaga Kerja', 'School Staff') };
+  const extracurricularLink = { href: '/admin/ekstrakulikuler', label: t('Ekstrakulikuler', 'Extracurriculars') };
+  const facilitiesLink = { href: '/admin/sarana-prasarana', label: t('Sarana & Prasarana', 'Facilities') };
+  const incomingMailLink = { href: '/admin/surat-masuk', label: t('Surat Masuk', 'Incoming Mail') };
   const navItems: AdminNavItem[] = [
-    { type: 'link', ...links[0] },
+    { type: 'link', ...dashboardLink },
     {
       type: 'submenu',
       id: 'school',
       label: t('Data Sekolah', 'School Data'),
-      links: [links[2], links[3], links[4], links[5], links[6]],
+      links: [galleryLinks[0], galleryLinks[1], achievementLink, staffLink, extracurricularLink, facilitiesLink],
     },
     {
       type: 'submenu',
       id: 'public-services',
       label: t('Layanan Publik', 'Public Services'),
-      links: [links[1], links[7]],
+      links: [applicantLink, incomingMailLink],
     },
   ];
   const pathname = usePathname();

@@ -5,12 +5,18 @@ import { FileText, UserRoundPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_FACILITIES, DEFAULT_TEACHERS, HEADMASTER_NAME, SCHOOL_MISSIONS, SCHOOL_MISSIONS_EN, SCHOOL_VISION, SCHOOL_VISION_CONTEXT, SCHOOL_VISION_CONTEXT_EN, SCHOOL_VISION_EN, type SchoolTeacher } from '@/lib/school-content';
+import { DEFAULT_EXTRACURRICULARS, DEFAULT_TEACHERS, HEADMASTER_NAME, mergeDefaultFacilities, orderExtracurriculars, SCHOOL_MISSIONS, SCHOOL_MISSIONS_EN, SCHOOL_VISION, SCHOOL_VISION_CONTEXT, SCHOOL_VISION_CONTEXT_EN, SCHOOL_VISION_EN, type SchoolTeacher } from '@/lib/school-content';
+import { PRESTASI_INFO } from '@/lib/prestasi-data';
 import { WA_ADMIN_URL } from '@/lib/site-links';
 
 type VisitorAnalytics = {
   total_visits: number;
   today_visits: number;
+};
+
+type WeeklyVisitorStats = {
+  daily: Record<string, number>;
+  unique_visitors: number;
 };
 
 type HomeArticle = {
@@ -22,11 +28,12 @@ type HomeArticle = {
 };
 
 type HomeActivity = {
+  id?: string;
   name: string;
   tag?: string;
   badge?: string;
   description: string;
-  image_url?: string;
+  image_url?: string | null;
 };
 
 type HomeFacility = {
@@ -39,6 +46,15 @@ const toVisitorStats = (record: VisitorAnalytics) => ({
   total: Number(record.total_visits || 0),
   today: Number(record.today_visits || 0),
 });
+
+const isWeeklyVisitorStats = (value: unknown): value is WeeklyVisitorStats => {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const stats = value as Record<string, unknown>;
+  const daily = stats.daily;
+  if (typeof daily !== 'object' || daily === null || Array.isArray(daily)) return false;
+  if (typeof stats.unique_visitors !== 'number' || !Number.isSafeInteger(stats.unique_visitors) || stats.unique_visitors < 0) return false;
+  return Object.values(daily).every((count) => typeof count === 'number' && Number.isSafeInteger(count) && count >= 0);
+};
 
 const getLastSevenDays = (locale: string) => {
   const todayParts = new Intl.DateTimeFormat('en-US', {
@@ -63,10 +79,22 @@ const getLastSevenDays = (locale: string) => {
 };
 
 const PRESTASI_PREVIEW = [
-  'WhatsApp Image 2026-10-11 at 16.15.26.jpeg',
-  'WhatsApp Image 2026-10-11 at 16.15.27.jpeg',
-  'WhatsApp Image 2026-10-11 at 16.15.28.jpeg',
-  'WhatsApp Image 2026-10-11 at 16.16.05.jpeg',
+  {
+    file: 'WhatsApp Image 2026-10-11 at 16.15.26.jpeg',
+    info: PRESTASI_INFO['WhatsApp Image 2026-10-11 at 16.15.26.jpeg'],
+  },
+  {
+    file: 'WhatsApp Image 2026-10-11 at 16.15.27.jpeg',
+    info: PRESTASI_INFO['WhatsApp Image 2026-10-11 at 16.15.27.jpeg'],
+  },
+  {
+    file: 'WhatsApp Image 2026-10-11 at 16.15.28.jpeg',
+    info: PRESTASI_INFO['WhatsApp Image 2026-10-11 at 16.15.28.jpeg'],
+  },
+  {
+    file: 'WhatsApp Image 2026-10-11 at 16.16.05.jpeg',
+    info: PRESTASI_INFO['WhatsApp Image 2026-10-11 at 16.16.05.jpeg'],
+  },
 ]
 
 const HEADMASTER_SPEECH_EN = `"Assalamu'alaikum Warahmatullahi Wabarakatuh, good morning and warm greetings to all of us.
@@ -165,7 +193,7 @@ export default function HomePage() {
   const [dbArticles, setDbArticles] = useState<HomeArticle[]>([]);
   const [dbEkskuls, setDbEkskuls] = useState<HomeActivity[]>([]);
   const [dbFacilities, setDbFacilities] = useState<HomeFacility[]>([]);
-  const [dbTeachers, setDbTeachers] = useState<SchoolTeacher[]>([]);
+  const [dbTeachers, setDbTeachers] = useState<SchoolTeacher[] | null>(null);
   const [openPanels, setOpenPanels] = useState<HomePanelKey[]>([]);
   const [dbStats, setDbStats] = useState({
     headmaster_name: HEADMASTER_NAME,
@@ -178,7 +206,7 @@ export default function HomePage() {
     total: 0,
     today: 0,
   });
-  const [dailyVisits, setDailyVisits] = useState<Record<string, number>>({});
+  const [weeklyVisitorStats, setWeeklyVisitorStats] = useState<WeeklyVisitorStats>({ daily: {}, unique_visitors: 0 });
   const [hasVisitorData, setHasVisitorData] = useState(false);
   const [hasWeeklyVisitorData, setHasWeeklyVisitorData] = useState(false);
 
@@ -198,7 +226,7 @@ export default function HomePage() {
 
       // 4. Guru
       const { data: teachers } = await supabase.from('teachers').select('*').order('sort_order').order('name');
-      if (teachers && teachers.length > 0) setDbTeachers(teachers);
+      if (teachers) setDbTeachers(teachers);
 
       // 5. Sambutan kepala sekolah
       const { data: st } = await supabase.from('school_stats').select('*').limit(1).single();
@@ -215,6 +243,22 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        window.location.replace('/admin/reset-password');
+      }
+    });
+
+    const recoveryUrl = new URL(window.location.href);
+    const hashParams = new URLSearchParams(recoveryUrl.hash.slice(1));
+    if (recoveryUrl.searchParams.get('type') === 'recovery' || hashParams.get('type') === 'recovery') {
+      window.location.replace(`/admin/reset-password${recoveryUrl.search}${recoveryUrl.hash}`);
+    }
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
     const loadWeeklyVisits = async () => {
       const { data, error } = await supabase.rpc('get_site_weekly_visits');
       if (error) {
@@ -222,7 +266,12 @@ export default function HomePage() {
         setHasWeeklyVisitorData(false);
         return;
       }
-      setDailyVisits(data || {});
+      if (!isWeeklyVisitorStats(data)) {
+        console.error('Supabase returned an invalid weekly visitor trend:', data);
+        setHasWeeklyVisitorData(false);
+        return;
+      }
+      setWeeklyVisitorStats(data);
       setHasWeeklyVisitorData(true);
     };
 
@@ -291,23 +340,15 @@ export default function HomePage() {
     };
   }, []);
 
-  // Fallback jika belum diinput di admin
-  const defaultEkskuls = [
-    { badge: 'HW', tag: 'KEPANDUAN', name: 'Hizbul Wathan (HW)', description: 'Membentuk kemandirian, kepemimpinan, dan ketangkasan hidup.', image_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80' },
-    { badge: 'TS', tag: 'BELA DIRI', name: 'Tapak Suci Putra Muh.', description: 'Seni bela diri islami dengan ragam prestasi kejuaraan.', image_url: 'https://images.unsplash.com/photo-1555597673-b21d5c935865?w=600&auto=format&fit=crop&q=80' },
-    { badge: 'IPM', tag: 'ORGANISASI', name: 'Ikatan Pelajar Muh. (IPM)', description: 'Wadah kepemimpinan, nalar dakwah, dan keorganisasian siswa.', image_url: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=600&auto=format&fit=crop&q=80' },
-    { badge: 'FS', tag: 'FUTSAL', name: 'Futsal & Olahraga', description: 'Mengasah kerja sama tim, stamina fisik, dan sportivitas.', image_url: 'https://images.unsplash.com/photo-1517466787929-bc90951d0974?w=600&auto=format&fit=crop&q=80' },
-  ];
-
   const defaultArticles = [
     { title: 'Pelatihan Guru dalam Pemanfaatan Kurikulum AI Digital', category: 'Kabar Pendidik', date_label: 'Juli 2026', description: 'Meningkatkan kompetensi tenaga pendidik dalam integrasi media kurikulum digital berkemajuan.', image_url: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&auto=format&fit=crop&q=80' },
     { title: 'Kemah Akbar Kepanduan Hizbul Wathan Siswa Baru', category: 'Kegiatan Siswa', date_label: 'Juni 2026', description: 'Melatih ketangkasan, kemandirian, dan solidaritas sosial peserta didik di bumi perkemahan.', image_url: 'https://images.unsplash.com/photo-1510312305653-8ed496efae75?w=600&auto=format&fit=crop&q=80' },
   ];
 
-  const displayEkskuls = dbEkskuls.length > 0 ? dbEkskuls : defaultEkskuls;
-  const displayFacilities = dbFacilities.length > 0 ? dbFacilities : DEFAULT_FACILITIES;
+  const displayEkskuls = orderExtracurriculars(dbEkskuls.length > 0 ? dbEkskuls : DEFAULT_EXTRACURRICULARS);
+  const displayFacilities = mergeDefaultFacilities(dbFacilities);
   const displayArticles = dbArticles.length > 0 ? dbArticles : defaultArticles;
-  const displayTeachers = dbTeachers.length > 0 ? dbTeachers : DEFAULT_TEACHERS;
+  const displayTeachers = dbTeachers ?? DEFAULT_TEACHERS;
 
   const togglePanel = (panel: HomePanelKey) => {
     setOpenPanels((current) => (current.includes(panel) ? current.filter((item) => item !== panel) : [...current, panel]));
@@ -320,9 +361,9 @@ export default function HomePage() {
   const weeklyTrend = getLastSevenDays(lang).map(({ date, label }) => ({
     date,
     label,
-    count: Number(dailyVisits[date] || 0),
+    count: weeklyVisitorStats.daily[date] || 0,
   }));
-  const weeklyTotal = weeklyTrend.reduce((total, day) => total + day.count, 0);
+  const weeklyTotal = weeklyVisitorStats.unique_visitors;
   const maxWeeklyCount = Math.max(...weeklyTrend.map((day) => day.count), 1);
 
   return (
@@ -459,9 +500,9 @@ export default function HomePage() {
           <div className="space-y-5">
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
               {[
-                { label: t('Total Kunjungan','Total Visits'), value: visitorStats.total, note: t('Sejak tracking aktif','Since tracking began') },
-                { label: t('Kunjungan 7 Hari','Visits in 7 Days'), value: weeklyTotal, note: t('Total page view 7 hari terakhir','Page views in the last 7 days') },
-                { label: t('Kunjungan Hari Ini','Visits Today'), value: visitorStats.today, note: t('Total page view hari ini','Page views today') },
+                { label: t('Total Pengunjung Unik','Total Unique Visitors'), value: visitorStats.total, note: t('Browser/perangkat unik sejak tracking aktif','Unique browsers/devices since tracking began') },
+                { label: t('Pengunjung Unik 7 Hari','Unique Visitors in 7 Days'), value: weeklyTotal, note: t('Browser/perangkat unik dalam 7 hari terakhir','Unique browsers/devices in the last 7 days') },
+                { label: t('Pengunjung Unik Hari Ini','Unique Visitors Today'), value: visitorStats.today, note: t('Satu browser/perangkat dihitung sekali hari ini','Each browser/device is counted once today') },
               ].map((stat) => (
                 <div key={stat.label} className={`p-6 ${glass} ${glassHover}`}>
                   <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">{stat.label}</p>
@@ -474,7 +515,7 @@ export default function HomePage() {
             {hasWeeklyVisitorData ? (
               <div className={`p-6 sm:p-8 ${glass}`}>
                 <div className="mb-6 flex items-center justify-between">
-                  <h3 className="text-sm font-black text-slate-950 dark:text-white">{t('Tren Kunjungan 7 Hari Terakhir', 'Visitor Trend — Last 7 Days')}</h3>
+                  <h3 className="text-sm font-black text-slate-950 dark:text-white">{t('Tren Pengunjung Unik 7 Hari Terakhir', 'Unique Visitors — Last 7 Days')}</h3>
                   <span className="text-[11px] text-slate-500 dark:text-slate-400">{t('7 hari terakhir', 'Last 7 days')}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-2 text-center">
@@ -491,11 +532,11 @@ export default function HomePage() {
                     );
                   })}
                 </div>
-                <p className="mt-5 text-[11px] text-slate-500 dark:text-slate-400">{t('Setiap perpindahan halaman publik dihitung sebagai satu kunjungan.', 'Each public page view is counted as one visit.')}</p>
+                <p className="mt-5 text-[11px] text-slate-500 dark:text-slate-400">{t('Satu browser/perangkat dihitung maksimal sekali per hari. Satu orang dapat tercatat lebih dari sekali jika memakai beberapa perangkat.', 'Each browser/device counts at most once per day. One person may be counted more than once when using multiple devices.')}</p>
               </div>
             ) : (
               <p role="status" className={`p-6 text-sm text-slate-500 dark:text-slate-400 ${glass}`}>
-                {t('Tren 7 hari belum tersedia. Terapkan migrasi statistik mingguan di Supabase.', 'The 7-day trend is not available yet. Apply the weekly analytics migration in Supabase.')}
+                {t('Tren pengunjung belum tersedia. Terapkan migrasi statistik pengunjung terbaru di Supabase.', 'The visitor trend is not available yet. Apply the latest visitor analytics migration in Supabase.')}
               </p>
             )}
           </div>
@@ -535,11 +576,17 @@ export default function HomePage() {
             {t('Lihat Semua', 'View All')}
           </Link>
         </SectionHead>
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:grid-cols-4">
-          {displayEkskuls.map((ekskul, idx) => (
-            <div key={idx} className={`group flex flex-col overflow-hidden ${glass} ${glassHover}`}>
+        <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {displayEkskuls.map((ekskul) => (
+            <div key={ekskul.id || ekskul.name} className={`group flex min-w-72 snap-start flex-col overflow-hidden sm:min-w-80 ${glass} ${glassHover}`}>
               <div className="relative h-44 w-full overflow-hidden bg-slate-200 dark:bg-slate-900">
-                <img src={ekskul.image_url || 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600&auto=format&fit=crop&q=80'} alt={ekskul.name} className="h-full w-full object-cover" />
+                {ekskul.image_url ? (
+                  <img src={ekskul.image_url} alt={ekskul.name} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-100 via-white to-violet-100 text-sky-700 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-sky-300">
+                    <span className="flex h-20 w-20 items-center justify-center border border-current/20 text-2xl font-black">{ekskul.badge || '☆'}</span>
+                  </div>
+                )}
                 <span className="absolute left-3 top-3 border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-800 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200">
                   {ekskul.tag || ekskul.badge || 'KEGIATAN'}
                 </span>
@@ -561,9 +608,35 @@ export default function HomePage() {
           </Link>
         </SectionHead>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          {PRESTASI_PREVIEW.map((file, idx) => (
-            <Link href="/prestasi" key={file} className={`group block aspect-[4/5] overflow-hidden p-2 ${glass} ${glassHover}`}>
-              <img src={`/img/prestasi/${encodeURIComponent(file)}`} alt={`${t('Prestasi siswa','Student achievement')} ${idx + 1}`} className="h-full w-full object-cover" loading="lazy" />
+          {PRESTASI_PREVIEW.map(({ file, info }) => (
+            <Link href="/prestasi" key={file} className={`group flex min-w-0 flex-col overflow-hidden p-2 ${glass} ${glassHover}`}>
+              <div className="aspect-[4/5] w-full overflow-hidden">
+                <img
+                  src={`/img/prestasi/${encodeURIComponent(file)}`}
+                  alt={`${t(info.name.id, info.name.en)} - ${t(info.title.id, info.title.en)}`}
+                  className="h-full w-full object-contain"
+                  loading="lazy"
+                />
+              </div>
+              <div className="flex flex-1 flex-col gap-2 p-3">
+                <span className="w-fit border border-white/70 bg-white/60 px-2 py-1 text-[9px] font-black uppercase tracking-[0.12em] text-slate-600 dark:border-white/10 dark:bg-white/10 dark:text-slate-300">
+                  {t(info.badge.id, info.badge.en)}
+                </span>
+                <h3 className="text-sm font-black leading-snug text-slate-950 dark:text-white">
+                  {t(info.title.id, info.title.en)}
+                </h3>
+                <p className="text-xs leading-5 text-slate-600 dark:text-slate-300">
+                  {t(info.event.id, info.event.en)}
+                </p>
+                <p className="mt-auto text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  {t(info.name.id, info.name.en)}{info.grade ? ` · ${t(`Kelas ${info.grade}`, `Grade ${info.grade}`)}` : ''}
+                </p>
+                {info.detail && (
+                  <p className="border-t border-slate-200/70 pt-2 text-[11px] leading-4 text-slate-500 dark:border-white/10 dark:text-slate-400">
+                    {t(info.detail.id, info.detail.en)}
+                  </p>
+                )}
+              </div>
             </Link>
           ))}
         </div>

@@ -6,17 +6,20 @@ import { supabase } from '@/lib/supabase';
 
 const PAGE_SIZE = 12;
 
+type GalleryPhoto = { src: string; title?: string };
+
 export default function PhotoGallery({ photos }: { photos: string[] }) {
   const { t } = useLang();
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [managedPhotos, setManagedPhotos] = useState<string[]>([]);
+  const [managedPhotos, setManagedPhotos] = useState<GalleryPhoto[]>([]);
+  const [managedPhotosLoaded, setManagedPhotosLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let active = true;
     supabase
       .from('school_gallery_items')
-      .select('media_url')
+      .select('media_url,title')
       .eq('media_type', 'photo')
       .order('sort_order')
       .order('created_at', { ascending: false })
@@ -25,13 +28,14 @@ export default function PhotoGallery({ photos }: { photos: string[] }) {
           console.error('Failed to load managed gallery photos:', error);
           if (active) setLoadError(true);
         } else if (active) {
-          setManagedPhotos((data || []).map((item) => item.media_url));
+          setManagedPhotos((data || []).map((item) => ({ src: item.media_url, title: item.title })));
+          setManagedPhotosLoaded(true);
         }
       });
     return () => { active = false; };
   }, []);
 
-  const allPhotos = [...managedPhotos, ...photos];
+  const allPhotos: GalleryPhoto[] = managedPhotosLoaded ? managedPhotos : photos.map((src) => ({ src }));
 
   if (allPhotos.length === 0) {
     return (
@@ -52,19 +56,19 @@ export default function PhotoGallery({ photos }: { photos: string[] }) {
         {allPhotos.length} {t('Foto Kegiatan Sekolah', 'School Photos')}
       </p>
       <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {allPhotos.slice(0, visibleCount).map((src, index) => (
-          <li key={src}>
+        {allPhotos.slice(0, visibleCount).map((photo, index) => (
+          <li key={photo.src}>
             <figure className="group overflow-hidden border border-white/70 bg-white/45 shadow-[0_12px_36px_-26px_rgba(15,23,42,0.45)] backdrop-blur-2xl dark:border-white/10 dark:bg-white/[0.04]">
               <div className="aspect-[4/3] overflow-hidden bg-slate-200 dark:bg-slate-900">
                 <img
-                  src={src}
+                  src={photo.src}
                   alt={`${t('Dokumentasi sekolah', 'School documentation')} ${index + 1}`}
                   loading={index < 6 ? 'eager' : 'lazy'}
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                 />
               </div>
               <figcaption className="px-4 py-3 text-xs font-semibold text-slate-600 dark:text-slate-300">
-                {t('Dokumentasi SMP Muhammadiyah Kembaran', 'SMP Muhammadiyah Kembaran documentation')}
+                {photo.title || t('Dokumentasi SMP Muhammadiyah Kembaran', 'SMP Muhammadiyah Kembaran documentation')}
               </figcaption>
             </figure>
           </li>

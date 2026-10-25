@@ -89,7 +89,7 @@ export default function GuruPage() {
 
   useEffect(() => {
     supabase.from('teachers').select('*').order('sort_order').order('name').then(({ data, error }) => {
-      if (!error && data?.length) setPeople(data);
+      if (!error && data) setPeople(data);
     });
   }, []);
 

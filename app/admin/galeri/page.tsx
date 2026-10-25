@@ -1,3 +1,5 @@
-import AdminGalleryPage from '../menu-navbar/galeri';
+import { redirect } from 'next/navigation';
 
-export default AdminGalleryPage;
+export default function AdminGalleryPageRedirect() {
+  redirect('/admin/galeri/foto');
+}

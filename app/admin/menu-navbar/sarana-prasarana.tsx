@@ -4,18 +4,22 @@ import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { uploadSchoolImage } from '@/lib/storage';
+import { deleteSchoolImage, getSchoolImagePathFromUrl, uploadSchoolImage } from '@/lib/storage';
 import AdminFormModal from '../components/AdminFormModal';
+import AdminImageField from '../components/AdminImageField';
 import AdminNavbar from '../components/navbar';
 
-type Facility = { id: string; name: string; description: string; image_url?: string };
+type Facility = { id: string; name: string; description: string; image_url?: string; image_path?: string };
+const emptyForm = { name: '', description: '' };
 
 export default function AdminSaranaPage() {
   const router = useRouter();
   const { t } = useLang();
   const [items, setItems] = useState<Facility[]>([]);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState(emptyForm);
   const [file, setFile] = useState<File | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const [editing, setEditing] = useState<Facility | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -57,35 +61,51 @@ export default function AdminSaranaPage() {
     const formElement = event.currentTarget;
     setSaving(true);
     setMessage('');
+    let uploadedPath: string | null = null;
 
     try {
-      let imageUrl: string | null = null;
-      let imagePath: string | null = null;
+      let imageUrl = removeImage ? null : editing?.image_url || null;
+      let imagePath = removeImage
+        ? null
+        : editing?.image_path || getSchoolImagePathFromUrl(editing?.image_url);
       if (file) {
         const uploaded = await uploadSchoolImage(file, 'fasilitas');
+        uploadedPath = uploaded.filePath;
         imageUrl = uploaded.publicUrl;
         imagePath = uploaded.filePath;
       }
 
-      const { error } = await supabase.from('facilities').insert({
+      const payload = {
         name: form.name.trim(),
         description: form.description.trim(),
         image_url: imageUrl,
         image_path: imagePath,
-      });
-      if (error) throw error;
+      };
+      const result = editing
+        ? await supabase.from('facilities').update(payload).eq('id', editing.id)
+        : await supabase.from('facilities').insert(payload);
+      if (result.error) throw result.error;
+
+      const oldImagePath = editing?.image_path || getSchoolImagePathFromUrl(editing?.image_url);
+      const cleanupSucceeded = !oldImagePath || (!file && !removeImage) || await deleteSchoolImage(oldImagePath);
 
       formElement.reset();
-      setForm({ name: '', description: '' });
+      setForm(emptyForm);
       setFile(null);
+      setRemoveImage(false);
+      setEditing(null);
       const refreshed = await load();
-      setMessage(refreshed
-        ? t('Sarana berhasil ditambahkan.', 'Facility added successfully.')
-        : t('Sarana berhasil ditambahkan, tetapi daftar belum dapat diperbarui.', 'Facility was added, but the list could not be refreshed.'));
+      const savedMessage = refreshed
+        ? t('Sarana berhasil disimpan.', 'Facility saved successfully.')
+        : t('Sarana berhasil disimpan, tetapi daftar belum dapat diperbarui.', 'Facility was saved, but the list could not be refreshed.');
+      setMessage(cleanupSucceeded
+        ? savedMessage
+        : `${savedMessage} ${t('File gambar lama belum berhasil dihapus dari penyimpanan.', 'The old image file could not be deleted from storage.')}`);
       setFormOpen(false);
     } catch (error) {
-      console.error('Failed to add facility:', error);
-      setMessage(error instanceof Error ? error.message : t('Sarana gagal ditambahkan.', 'Facility could not be added.'));
+      console.error('Failed to save facility:', error);
+      if (uploadedPath) await deleteSchoolImage(uploadedPath);
+      setMessage(error instanceof Error ? error.message : t('Sarana gagal disimpan.', 'Facility could not be saved.'));
     } finally {
       setSaving(false);
     }
@@ -99,10 +119,25 @@ export default function AdminSaranaPage() {
       setMessage(error.message);
       return;
     }
+    const imageCleanupSucceeded = !item.image_path && !getSchoolImagePathFromUrl(item.image_url)
+      ? true
+      : await deleteSchoolImage(item.image_path || getSchoolImagePathFromUrl(item.image_url) || '');
     const refreshed = await load();
-    setMessage(refreshed
+    const deletedMessage = refreshed
       ? t('Sarana berhasil dihapus.', 'Facility deleted successfully.')
-      : t('Sarana berhasil dihapus, tetapi daftar belum dapat diperbarui.', 'Facility was deleted, but the list could not be refreshed.'));
+      : t('Sarana berhasil dihapus, tetapi daftar belum dapat diperbarui.', 'Facility was deleted, but the list could not be refreshed.');
+    setMessage(imageCleanupSucceeded
+      ? deletedMessage
+      : `${deletedMessage} ${t('File gambar belum berhasil dihapus dari penyimpanan.', 'The image file could not be deleted from storage.')}`);
+  };
+
+  const openAddForm = () => {
+    setMessage('');
+    setEditing(null);
+    setForm(emptyForm);
+    setFile(null);
+    setRemoveImage(false);
+    setFormOpen(true);
   };
 
   if (loading) return <div className="admin-loading" role="status"><span>{t('Memuat sarana...', 'Loading facilities...')}</span></div>;
@@ -117,7 +152,7 @@ export default function AdminSaranaPage() {
             <h1 className="mt-2 text-2xl font-black text-blue-950 dark:text-white sm:text-3xl">{t('Sarana & Prasarana', 'Facilities')}</h1>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{t('Kelola fasilitas dan lingkungan belajar yang tampil di website.', 'Manage the facilities and learning environment shown on the website.')}</p>
           </div>
-          <button type="button" onClick={() => { setMessage(''); setFormOpen(true); }} className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-800">
+          <button type="button" onClick={openAddForm} className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-800">
             {t('Tambah Sarana', 'Add Facility')}
           </button>
         </header>
@@ -134,21 +169,36 @@ export default function AdminSaranaPage() {
                   <h3 className="font-bold">{item.name}</h3>
                   <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{item.description}</p>
                 </div>
-                <button type="button" onClick={() => void remove(item)} className="self-start rounded-lg px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40">{t('Hapus', 'Delete')}</button>
+                <div className="flex self-start gap-1">
+                  <button type="button" onClick={() => { setMessage(''); setEditing(item); setForm({ name: item.name, description: item.description }); setFile(null); setRemoveImage(false); setFormOpen(true); }} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300 dark:hover:bg-sky-400/20">{t('Edit', 'Edit')}</button>
+                  <button type="button" onClick={() => void remove(item)} className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition-colors hover:bg-red-100 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300 dark:hover:bg-red-400/20">{t('Hapus', 'Delete')}</button>
+                </div>
               </article>
             ))}
             {items.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{t('Belum ada sarana.', 'No facilities yet.')}</p>}
           </div>
         </section>
 
-        <AdminFormModal open={formOpen} title={t('Tambah Sarana', 'Add Facility')} onClose={() => setFormOpen(false)}>
+        <AdminFormModal open={formOpen} title={editing ? t('Edit Sarana', 'Edit Facility') : t('Tambah Sarana', 'Add Facility')} onClose={() => setFormOpen(false)}>
           <form onSubmit={save} className="space-y-4">
             {message && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{message}</p>}
             <input required placeholder={t('Nama fasilitas', 'Facility name')} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
             <textarea required rows={5} placeholder={t('Deskripsi fasilitas', 'Facility description')} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900" />
-            <input type="file" accept="image/*" onChange={(event) => setFile(event.target.files?.[0] || null)} className="w-full rounded-xl border bg-slate-50 p-2.5 text-sm dark:border-white/10 dark:bg-slate-900" />
+            <AdminImageField
+              label={t('Foto sarana', 'Facility image')}
+              imageUrl={editing?.image_url}
+              file={file}
+              removeImage={removeImage}
+              onFileChange={(selectedFile) => { setFile(selectedFile); if (selectedFile) setRemoveImage(false); }}
+              onRemoveImage={() => { setRemoveImage(true); setFile(null); }}
+              onRestoreImage={() => setRemoveImage(false)}
+              unavailableLabel={t('Gambar belum tersedia', 'Image not available')}
+              chooseImageLabel={t('Pilih gambar untuk mengganti atau menambahkan', 'Choose an image to replace or add')}
+              removeImageLabel={t('Hapus gambar', 'Remove image')}
+              restoreImageLabel={t('Batalkan hapus gambar', 'Undo image removal')}
+            />
             <button disabled={saving} className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">
-              {saving ? t('Menyimpan...', 'Saving...') : t('Tambah Sarana', 'Add Facility')}
+              {saving ? t('Menyimpan...', 'Saving...') : editing ? t('Simpan Perubahan', 'Save Changes') : t('Tambah Sarana', 'Add Facility')}
             </button>
           </form>
         </AdminFormModal>

@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const MAX_REQUEST_SIZE = MAX_FILE_SIZE * 2 + 128_000;
+const SUPABASE_REQUEST_TIMEOUT_MS = 30_000;
 const ALLOWED_FILE_TYPES = new Map([
   ['application/pdf', 'pdf'],
   ['image/jpeg', 'jpg'],
@@ -33,6 +34,27 @@ function dateField(value: string): boolean {
     && new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value;
 }
 
+function normalizeWhatsappNumber(value: string): string {
+  if (!/^[0-9+\s().-]+$/.test(value)) {
+    throw new Error('Nomor WhatsApp hanya boleh berisi angka dan tanda +, spasi, atau tanda hubung.');
+  }
+
+  const digits = value.replace(/\D/g, '');
+  const normalized = digits.startsWith('0')
+    ? `62${digits.slice(1)}`
+    : digits.startsWith('62')
+      ? digits
+      : digits.startsWith('8')
+        ? `62${digits}`
+        : '';
+
+  if (!/^62[0-9]{8,13}$/.test(normalized)) {
+    throw new Error('Nomor WhatsApp tidak valid. Gunakan format 08xxxxxxxxxx atau +62 8xxxxxxxxxx.');
+  }
+
+  return normalized;
+}
+
 function attachmentField(formData: FormData, name: string): File | null {
   const value = formData.get(name);
   if (value === null) return null;
@@ -58,6 +80,15 @@ function getServerSupabaseClient() {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
+    },
+    global: {
+      fetch: (input, init) => {
+        const timeoutSignal = AbortSignal.timeout(SUPABASE_REQUEST_TIMEOUT_MS);
+        const signal = init?.signal
+          ? AbortSignal.any([init.signal, timeoutSignal])
+          : timeoutSignal;
+        return fetch(input, { ...init, signal });
+      },
     },
   });
 }
@@ -100,6 +131,7 @@ export async function POST(request: Request) {
     birth_place: string;
     birth_date: string;
     nik: string;
+    guardian_whatsapp: string;
     snsps_document_path: string | null;
     graduation_proof_path: string | null;
   };
@@ -121,6 +153,7 @@ export async function POST(request: Request) {
 
     snspsDocument = attachmentField(formData, 'snspsDocument');
     graduationProof = attachmentField(formData, 'graduationProof');
+    const guardianWhatsapp = normalizeWhatsappNumber(textField(formData, 'guardianWhatsapp', 30, true));
     application = {
       full_name: textField(formData, 'fullName', 120, true),
       nickname: textField(formData, 'nickname', 80, true),
@@ -128,6 +161,7 @@ export async function POST(request: Request) {
       birth_place: textField(formData, 'birthPlace', 100, true),
       birth_date: birthDate,
       nik,
+      guardian_whatsapp: guardianWhatsapp,
       snsps_document_path: null,
       graduation_proof_path: null,
     };
@@ -197,5 +231,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return Response.json({ ok: true }, { status: 201 });
+  return Response.json({ ok: true, applicationId }, { status: 201 });
 }

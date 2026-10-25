@@ -64,10 +64,7 @@ export default function IncomingMailForm() {
 
   return (
     <section id="surat-masuk" className="relative z-10 mx-auto max-w-6xl">
-      <div className="relative overflow-hidden border border-white/70 bg-linear-to-br from-sky-200/60 via-white/50 to-violet-200/50 p-6 shadow-[0_30px_80px_-40px_rgba(56,189,248,0.6)] backdrop-blur-2xl dark:border-white/10 dark:from-sky-500/15 dark:via-white/[0.03] dark:to-indigo-500/15 sm:p-10">
-        <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-sky-300/40 blur-3xl dark:bg-sky-500/20" />
-        <div className="pointer-events-none absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-violet-300/35 blur-3xl dark:bg-indigo-500/15" />
-
+      <div className="relative overflow-hidden border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-black sm:p-10">
         <div className="relative">
           <header className="mb-8 max-w-2xl">
             <p className="text-xs font-bold uppercase tracking-[0.25em] text-slate-600 dark:text-slate-400">

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Building2 } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_FACILITIES } from '@/lib/school-content';
+import { DEFAULT_FACILITIES, mergeDefaultFacilities } from '@/lib/school-content';
 
 type Facility = {
   id: string;
@@ -33,7 +33,7 @@ export default function FacilitiesPage() {
         setFacilities(DEFAULT_FACILITIES);
         setLoadError(true);
       } else {
-        setFacilities(data?.length ? data : DEFAULT_FACILITIES);
+        setFacilities(mergeDefaultFacilities(data ?? []));
       }
       setLoading(false);
     }
