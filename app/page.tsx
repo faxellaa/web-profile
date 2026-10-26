@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState, useEffect } from 'react';
-import { FileText, UserRoundPlus } from 'lucide-react';
+import { ChevronRight, FileText, UserRoundPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
@@ -160,6 +160,23 @@ function SectionHead({ label, title, desc, children }: { label: string; title: s
       </div>
       {children}
     </header>
+  );
+}
+
+function HomeSeeMoreCard({ href, label, className }: { href: string; label: string; className: string }) {
+  return (
+    <Link
+      href={href}
+      aria-label={label}
+      className={`group flex snap-start flex-col items-center justify-center gap-3 self-stretch border border-dashed border-slate-300/70 bg-white/45 p-5 text-center shadow-[0_12px_36px_-26px_rgba(15,23,42,0.45)] backdrop-blur-2xl transition-colors duration-300 hover:bg-white/70 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.09] ${className}`}
+    >
+      <span className="flex h-12 w-12 items-center justify-center rounded-full border border-slate-300/70 text-slate-700 transition-colors group-hover:bg-white dark:border-white/15 dark:text-white dark:group-hover:bg-white/10">
+        <ChevronRight aria-hidden="true" className="h-6 w-6" />
+      </span>
+      <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-700 dark:text-slate-200">
+        {label}
+      </span>
+    </Link>
   );
 }
 
@@ -429,20 +446,17 @@ export default function HomePage() {
       </section>
 
       {/* 2. SAMBUTAN */}
-      <section id="sambutan" className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
+      <section id="sambutan" className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-16 sm:pt-24">
         <SectionHead label={t('Pesan Pimpinan','Message from the Head')} title={t('Sambutan Kepala Sekolah','Headmaster’s Welcome')} />
-        <div className={`home-welcome-card grid w-full overflow-hidden md:grid-cols-[280px_minmax(0,1fr)] ${glass}`}>
-          <div className="home-welcome-card__image relative aspect-[4/5] w-full overflow-hidden bg-slate-100 dark:bg-slate-900 md:aspect-auto">
+        <div className={`home-welcome-card grid w-full overflow-hidden rounded-2xl md:grid-cols-[280px_minmax(0,1fr)] ${glass}`}>
+          <div className="home-welcome-card__image relative aspect-[3/4] w-full self-start overflow-hidden bg-slate-100 dark:bg-slate-900 md:aspect-auto md:self-stretch">
             {dbStats.photo_url ? (
-              <>
-                <img src={dbStats.photo_url} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-35 blur-2xl" />
-                <img src={dbStats.photo_url} alt={dbStats.headmaster_name} className="absolute inset-0 h-full w-full object-contain object-center" />
-              </>
+              <img src={dbStats.photo_url} alt={dbStats.headmaster_name} className="absolute inset-0 h-full w-full object-contain object-center md:object-cover" />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-linear-to-br from-sky-200/70 via-white to-violet-200/60 text-7xl font-black text-slate-500 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-400">{dbStats.headmaster_name.charAt(0)}</div>
             )}
           </div>
-          <div aria-busy={!schoolStatsLoaded} className="home-welcome-card__content flex flex-col justify-start p-6 sm:p-8">
+          <div aria-busy={!schoolStatsLoaded} className="home-welcome-card__content flex flex-col justify-start p-4 sm:p-6">
             {schoolStatsLoaded ? (
               <p className="whitespace-pre-line text-sm leading-6 text-slate-700 dark:text-slate-300">
                 {speechText}
@@ -495,13 +509,9 @@ export default function HomePage() {
 
       {/* 4. TENAGA KERJA */}
       <section id="guru" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
-        <SectionHead label={t('Orang-Orang di Balik Sekolah','The People Behind the School')} title={t('Tenaga Kerja','Our Staff')} desc={t('Kenali pendidik yang mendampingi perjalanan belajar siswa.','Meet the educators who guide our students’ learning journey.')}>
-          <Link href="/guru" className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-white/70 bg-white/55 px-6 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-900 backdrop-blur-2xl transition-colors duration-200 hover:bg-white/80 dark:border-white/15 dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/[0.12]">
-            {t('Lihat Semua', 'View All')}
-          </Link>
-        </SectionHead>
+        <SectionHead label={t('Orang-Orang di Balik Sekolah','The People Behind the School')} title={t('Tenaga Kerja','Our Staff')} desc={t('Kenali pendidik yang mendampingi perjalanan belajar siswa.','Meet the educators who guide our students’ learning journey.')} />
         <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {displayTeachers.slice(0, 6).map((teacher, index) => (
+          {displayTeachers.slice(0, 5).map((teacher, index) => (
             <Link href="/guru" key={teacher.id || teacher.name || index} className={`group relative w-48 shrink-0 snap-start overflow-hidden sm:w-56 ${glass} ${glassHover}`}>
               <div className="relative aspect-[4/5] overflow-hidden bg-slate-200 dark:bg-slate-900">
                 {teacher.photo_url ? <img src={teacher.photo_url} alt={`${t('Foto','Photo of')} ${teacher.name}`} className="h-full w-full object-cover object-top" /> : <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-200/70 via-white to-violet-200/60 text-6xl font-black text-slate-500 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-400">{teacher.name.charAt(0)}</div>}
@@ -512,10 +522,96 @@ export default function HomePage() {
               </div>
             </Link>
           ))}
+          <HomeSeeMoreCard
+            href="/guru"
+            label={t('Lihat Selengkapnya', 'See More')}
+            className="w-48 shrink-0 sm:w-56"
+          />
         </div>
       </section>
 
-      {/* 5. STATISTIK */}
+      {/* 5. SARANA & PRASARANA */}
+      <section id="sarana" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
+        <SectionHead label={t('Fasilitas Sekolah','School Facilities')} title={t('Sarana & Prasarana','Facilities')} desc={t('Ruang belajar dan sarana penunjang kegiatan siswa.','Learning spaces and facilities that support student activities.')} />
+        <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {displayFacilities.slice(0, 5).map((facility, idx) => (
+            <div key={idx} className={`group min-w-72 snap-start overflow-hidden sm:min-w-80 ${glass} ${glassHover}`}>
+              <div className="h-48 w-full overflow-hidden bg-slate-200 dark:bg-slate-900">
+                <img src={facility.image_url || 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=80'} alt={facility.name} className="h-full w-full object-cover" />
+              </div>
+              <div className="p-5">
+                <h3 className="text-sm font-black text-slate-950 dark:text-white">{facility.name}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{facility.description}</p>
+              </div>
+            </div>
+          ))}
+          <HomeSeeMoreCard
+            href="/profil/sarana-prasarana"
+            label={t('Lihat Selengkapnya', 'See More')}
+            className="min-w-72 sm:min-w-80"
+          />
+        </div>
+      </section>
+
+      {/* 6. EKSTRAKURIKULER */}
+      <section id="ekskul" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
+        <SectionHead label={t('Pengembangan Bakat','Talent Development')} title={t('Ekstrakurikuler','Extracurriculars')} desc={t('Ruang pembinaan minat, kreativitas, dan kepemimpinan siswa.','A space to nurture students’ interests, creativity, and leadership.')} />
+        <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {displayEkskuls.slice(0, 5).map((ekskul) => (
+            <div key={ekskul.id || ekskul.name} className={`group flex min-w-72 snap-start flex-col overflow-hidden sm:min-w-80 ${glass} ${glassHover}`}>
+              <div className="relative h-44 w-full overflow-hidden bg-slate-200 dark:bg-slate-900">
+                {ekskul.image_url ? (
+                  <img src={ekskul.image_url} alt={ekskul.name} className="h-full w-full object-cover" />
+                ) : (
+                  <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-100 via-white to-violet-100 text-sky-700 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-sky-300">
+                    <span className="flex h-20 w-20 items-center justify-center border border-current/20 text-2xl font-black">{ekskul.badge || '☆'}</span>
+                  </div>
+                )}
+                <span className="absolute left-3 top-3 border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-800 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200">
+                  {ekskul.tag || ekskul.badge || 'KEGIATAN'}
+                </span>
+              </div>
+              <div className="p-5">
+                <h3 className="text-sm font-black text-slate-950 dark:text-white">{ekskul.name}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{ekskul.description}</p>
+              </div>
+            </div>
+          ))}
+          <HomeSeeMoreCard
+            href="/akademik/ekstrakurikuler"
+            label={t('Lihat Selengkapnya', 'See More')}
+            className="min-w-72 sm:min-w-80"
+          />
+        </div>
+      </section>
+
+      {/* 7. PRESTASI */}
+      <section id="prestasi" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
+        <SectionHead label={t('Capaian Siswa','Student Success')} title={t('Prestasi','Achievements')} desc={t('Dokumentasi kejuaraan dan pencapaian siswa-siswi kami.','Documentation of our students’ championships and accomplishments.')} />
+        <div
+          role="region"
+          aria-label={t('Daftar prestasi, geser untuk melihat lainnya', 'Achievements, scroll to see more')}
+          tabIndex={0}
+          className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:thin]"
+        >
+          {displayAchievements.slice(0, 5).map((achievement, index) => (
+            <Link
+              href="/prestasi"
+              key={`${achievement.title}-${index}`}
+              className="w-[78%] shrink-0 snap-start sm:w-[48%] lg:w-[23%]"
+            >
+              <AchievementCard {...achievement} />
+            </Link>
+          ))}
+          <HomeSeeMoreCard
+            href="/prestasi"
+            label={t('Lihat Selengkapnya', 'See More')}
+            className="w-[78%] shrink-0 sm:w-[48%] lg:w-[23%]"
+          />
+        </div>
+      </section>
+
+      {/* 8. STATISTIK */}
       <section id="statistik" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
         <SectionHead label={t('Lalu Lintas Informasi','Information Traffic')} title={t('Statistik Pengunjung','Visitor Statistics')} desc={t('Ringkasan kunjungan pada halaman publik sekolah.','Summary of visits to the school’s public pages.')}>
           <span className="inline-flex w-fit items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-300">
@@ -573,84 +669,6 @@ export default function HomePage() {
             Data kunjungan belum tersedia. Statistik akan muncul setelah pencatatan Supabase diaktifkan.
           </p>
         )}
-      </section>
-
-      {/* 6. SARANA & PRASARANA */}
-      <section id="sarana" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
-        <SectionHead label={t('Fasilitas Sekolah','School Facilities')} title={t('Sarana & Prasarana','Facilities')} desc={t('Ruang belajar dan sarana penunjang kegiatan siswa.','Learning spaces and facilities that support student activities.')}>
-          <Link href="/profil/sarana-prasarana" className="text-xs font-bold uppercase tracking-[0.15em] text-slate-900 underline-offset-4 hover:underline dark:text-white">
-            {t('Lihat Semua', 'View All')}
-          </Link>
-        </SectionHead>
-        <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {displayFacilities.map((facility, idx) => (
-            <div key={idx} className={`group min-w-72 snap-start overflow-hidden sm:min-w-80 ${glass} ${glassHover}`}>
-              <div className="h-48 w-full overflow-hidden bg-slate-200 dark:bg-slate-900">
-                <img src={facility.image_url || 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=80'} alt={facility.name} className="h-full w-full object-cover" />
-              </div>
-              <div className="p-5">
-                <h3 className="text-sm font-black text-slate-950 dark:text-white">{facility.name}</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{facility.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 7. EKSTRAKURIKULER */}
-      <section id="ekskul" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
-        <SectionHead label={t('Pengembangan Bakat','Talent Development')} title={t('Ekstrakurikuler','Extracurriculars')} desc={t('Ruang pembinaan minat, kreativitas, dan kepemimpinan siswa.','A space to nurture students’ interests, creativity, and leadership.')}>
-          <Link href="/akademik/ekstrakurikuler" className="w-fit text-xs font-bold uppercase tracking-[0.15em] text-slate-900 underline-offset-4 hover:underline dark:text-white">
-            {t('Lihat Semua', 'View All')}
-          </Link>
-        </SectionHead>
-        <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {displayEkskuls.map((ekskul) => (
-            <div key={ekskul.id || ekskul.name} className={`group flex min-w-72 snap-start flex-col overflow-hidden sm:min-w-80 ${glass} ${glassHover}`}>
-              <div className="relative h-44 w-full overflow-hidden bg-slate-200 dark:bg-slate-900">
-                {ekskul.image_url ? (
-                  <img src={ekskul.image_url} alt={ekskul.name} className="h-full w-full object-cover" />
-                ) : (
-                  <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-100 via-white to-violet-100 text-sky-700 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-sky-300">
-                    <span className="flex h-20 w-20 items-center justify-center border border-current/20 text-2xl font-black">{ekskul.badge || '☆'}</span>
-                  </div>
-                )}
-                <span className="absolute left-3 top-3 border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-800 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200">
-                  {ekskul.tag || ekskul.badge || 'KEGIATAN'}
-                </span>
-              </div>
-              <div className="p-5">
-                <h3 className="text-sm font-black text-slate-950 dark:text-white">{ekskul.name}</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{ekskul.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* 8. PRESTASI */}
-      <section id="prestasi" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
-        <SectionHead label={t('Capaian Siswa','Student Success')} title={t('Prestasi','Achievements')} desc={t('Dokumentasi kejuaraan dan pencapaian siswa-siswi kami.','Documentation of our students’ championships and accomplishments.')}>
-          <Link href="/prestasi" className="inline-flex min-h-11 w-fit items-center justify-center rounded-xl border border-white/70 bg-white/55 px-6 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-900 backdrop-blur-2xl transition-colors duration-200 hover:bg-white/80 dark:border-white/15 dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/[0.12]">
-            {t('Lihat Semua','View All')}
-          </Link>
-        </SectionHead>
-        <div
-          role="region"
-          aria-label={t('Daftar prestasi, geser untuk melihat lainnya', 'Achievements, scroll to see more')}
-          tabIndex={0}
-          className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:thin]"
-        >
-          {displayAchievements.map((achievement, index) => (
-            <Link
-              href="/prestasi"
-              key={`${achievement.title}-${index}`}
-              className="w-[78%] shrink-0 snap-start sm:w-[48%] lg:w-[23%]"
-            >
-              <AchievementCard {...achievement} />
-            </Link>
-          ))}
-        </div>
       </section>
 
       <section id="layanan-publik" data-reveal className="relative z-10 mx-auto max-w-6xl px-4 pt-24 sm:pt-32">
