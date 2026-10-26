@@ -88,7 +88,7 @@ Formulir ini digunakan untuk mengirim surat ke administrasi sekolah. Isian menca
 
 - Isian dan lampiran wajib diisi.
 - Lampiran menerima foto, PDF, DOC, dan DOCX, dengan batas 5 MB.
-- Form mengirim data dan lampiran ke endpoint server. Setelah berhasil, form direset, modal tertutup otomatis, lalu notifikasi sukses tampil di tengah layar dengan kartu lebih lebar dan teks rata tengah. Notifikasi mengonfirmasi bahwa surat/lampiran diterima serta akan diperiksa dan diteruskan oleh administrasi sekolah.
+- Form mengirim data dan lampiran ke endpoint server. Setelah berhasil, form direset, modal tertutup otomatis, lalu notifikasi sukses tampil di tengah layar dengan ruang sisi pada layar ponsel dan teks rata tengah. Notifikasi mengonfirmasi bahwa surat/lampiran diterima serta akan diperiksa dan diteruskan oleh administrasi sekolah.
 - Tombol Kirim Surat berada di sisi kanan dan berwarna biru; tombol pemilih file menggunakan aksen biru yang konsisten dengan formulir SPMB.
 
 ## 4. Fitur panel admin

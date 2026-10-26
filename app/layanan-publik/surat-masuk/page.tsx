@@ -83,23 +83,27 @@ export default function SuratMasukPage() {
       </FormModal>
       {successMessage && (
         <div
-          role="status"
-          aria-live="polite"
-          className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-emerald-200 bg-white p-6 text-center text-emerald-950 shadow-2xl dark:border-emerald-400/30 dark:bg-slate-900 dark:text-emerald-100 sm:p-8"
+          className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center px-5"
         >
-          <CheckCircle2 aria-hidden="true" className="mx-auto h-8 w-8 text-emerald-600 dark:text-emerald-300" />
-          <div className="mt-3">
-            <p className="text-lg font-bold">{t('Surat berhasil dikirim!', 'Letter submitted successfully!')}</p>
-            <p className="mx-auto mt-2 max-w-lg text-sm leading-6">{successMessage}</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setSuccessMessage(null)}
-            aria-label={t('Tutup notifikasi', 'Dismiss notification')}
-            className="absolute right-3 top-3 rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+          <div
+            role="status"
+            aria-live="polite"
+            className="pointer-events-auto relative w-full max-w-lg rounded-2xl border border-emerald-200 bg-white p-6 text-center text-emerald-950 shadow-2xl dark:border-emerald-400/30 dark:bg-slate-900 dark:text-emerald-100 sm:p-8"
           >
-            <X aria-hidden="true" className="h-4 w-4" />
-          </button>
+            <CheckCircle2 aria-hidden="true" className="mx-auto h-8 w-8 text-emerald-600 dark:text-emerald-300" />
+            <div className="mt-3">
+              <p className="text-lg font-bold">{t('Surat berhasil dikirim!', 'Letter submitted successfully!')}</p>
+              <p className="mx-auto mt-2 max-w-lg text-sm leading-6">{successMessage}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSuccessMessage(null)}
+              aria-label={t('Tutup notifikasi', 'Dismiss notification')}
+              className="absolute right-3 top-3 rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+            >
+              <X aria-hidden="true" className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       )}
     </div>
