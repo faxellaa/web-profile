@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
@@ -12,6 +13,8 @@ export default function ResetPasswordPage() {
   const { lang, setLang, t } = useLang();
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -52,7 +55,7 @@ export default function ResetPasswordPage() {
   };
 
   const inputClass =
-    'w-full px-4 py-3 sm:py-2.5 text-base sm:text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors';
+    'w-full px-4 pr-12 py-3 sm:py-2.5 text-base sm:text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors';
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 relative">
@@ -88,11 +91,33 @@ export default function ResetPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">{t('Password Baru', 'New Password')}</label>
-              <input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('Masukkan password baru', 'Enter new password')} className={inputClass} />
+              <div className="relative">
+                <input type={showPassword ? 'text' : 'password'} required value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('Masukkan password baru', 'Enter new password')} className={inputClass} />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((visible) => !visible)}
+                  aria-label={showPassword ? t('Sembunyikan password', 'Hide password') : t('Tampilkan password', 'Show password')}
+                  aria-pressed={showPassword}
+                  className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-slate-500 transition-colors hover:text-blue-700 dark:text-slate-400 dark:hover:text-sky-400"
+                >
+                  {showPassword ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">{t('Konfirmasi Password', 'Confirm Password')}</label>
-              <input type="password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={t('Ulangi password baru', 'Repeat new password')} className={inputClass} />
+              <div className="relative">
+                <input type={showConfirm ? 'text' : 'password'} required value={confirm} onChange={(e) => setConfirm(e.target.value)} placeholder={t('Ulangi password baru', 'Repeat new password')} className={inputClass} />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm((visible) => !visible)}
+                  aria-label={showConfirm ? t('Sembunyikan password', 'Hide password') : t('Tampilkan password', 'Show password')}
+                  aria-pressed={showConfirm}
+                  className="absolute inset-y-0 right-0 flex w-12 items-center justify-center rounded-r-xl text-slate-500 transition-colors hover:text-blue-700 dark:text-slate-400 dark:hover:text-sky-400"
+                >
+                  {showConfirm ? <EyeOff aria-hidden="true" className="h-4 w-4" /> : <Eye aria-hidden="true" className="h-4 w-4" />}
+                </button>
+              </div>
             </div>
             <button
               type="submit"
