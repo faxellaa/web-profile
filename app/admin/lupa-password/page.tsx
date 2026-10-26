@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/i18n';
-import { syncThemeFromStorage } from '@/lib/theme-transition';
+import { setThemeWithTransition, syncThemeFromStorage, useThemeMode } from '@/lib/theme-transition';
 
 export default function LupaPasswordPage() {
   const { lang, setLang, t } = useLang();
@@ -12,12 +12,17 @@ export default function LupaPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [sent, setSent] = useState(false);
+  const isDark = useThemeMode();
 
   useEffect(() => {
     document.documentElement.classList.add('admin-interface');
     syncThemeFromStorage();
     return () => document.documentElement.classList.remove('admin-interface');
   }, []);
+
+  const toggleTheme = () => {
+    setThemeWithTransition(!isDark);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,9 +42,38 @@ export default function LupaPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 relative">
-      <button type="button" onClick={() => setLang(lang === 'id' ? 'en' : 'id')} className="absolute right-3 top-3 z-20 flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/80 text-[11px] font-bold text-slate-700 shadow-sm transition-all duration-300 hover:bg-white active:scale-90 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:right-5 sm:top-5" title={t('Switch to English', 'Ganti ke Bahasa Indonesia')} aria-label={t('Ganti Bahasa', 'Change Language')}>{lang === 'id' ? 'ID' : 'EN'}</button>
-      <div className="w-full max-w-sm sm:max-w-md ios-glass-card rounded-3xl p-6 sm:p-8 space-y-6 relative z-10 shadow-2xl border border-white/80 dark:border-white/10">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 md:p-8 transition-colors duration-500 relative">
+      <div className="w-full max-w-sm sm:max-w-md ios-glass-card rounded-3xl p-6 sm:p-8 space-y-6 relative z-10 shadow-2xl border border-white/80 dark:border-white/10 transition-colors duration-500">
+        <div className="flex items-center justify-end gap-2 border-b border-slate-200/70 pb-3 dark:border-white/10">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/80 shadow-sm transition-all duration-300 hover:bg-white active:scale-90 dark:border-white/15 dark:bg-slate-800 dark:hover:bg-slate-700"
+            title={isDark ? t('Mode Gelap', 'Dark Mode') : t('Mode Terang', 'Light Mode')}
+            aria-label={t('Ganti Tema', 'Toggle Theme')}
+          >
+            {isDark ? (
+              <svg className="h-4 w-4 fill-current text-sky-400" viewBox="0 0 24 24">
+                <path d="M21.752 15.002A9.718 9.718 0 0118 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 009.002-5.998z" />
+              </svg>
+            ) : (
+              <svg className="h-4 w-4 stroke-current text-amber-500" fill="none" viewBox="0 0 24 24" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32l1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+              </svg>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setLang(lang === 'id' ? 'en' : 'id')}
+            className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/80 text-[11px] font-bold text-slate-700 shadow-sm transition-colors hover:bg-white dark:border-white/15 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+            title={lang === 'id' ? 'Ganti ke Bahasa Inggris' : 'Switch to Indonesian'}
+            aria-label={t('Ganti Bahasa', 'Change Language')}
+          >
+            {lang === 'id' ? 'ID' : 'EN'}
+          </button>
+        </div>
+
         <div className="text-center space-y-2">
           <div className="w-20 h-20 mx-auto rounded-2xl bg-white p-2.5 border border-slate-200 dark:border-white/10 shadow-sm flex items-center justify-center">
             <img src="/img/logosmp.png" alt={t("Logo SMP Muhammadiyah Kembaran", "SMP Muhammadiyah Kembaran Logo")} className="w-full h-full object-contain" />
