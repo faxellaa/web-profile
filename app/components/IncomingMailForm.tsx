@@ -24,7 +24,7 @@ export default function IncomingMailForm() {
 
   useEffect(() => {
     if (status?.type !== 'success') return;
-    const timeout = window.setTimeout(() => setStatus(null), 5000);
+    const timeout = window.setTimeout(() => setStatus(null), 8000);
     return () => window.clearTimeout(timeout);
   }, [status]);
 
@@ -64,7 +64,10 @@ export default function IncomingMailForm() {
       form.reset();
       setStatus({
         type: 'success',
-        message: t('Surat berhasil dikirim. Terima kasih.', 'Your letter was submitted successfully. Thank you.'),
+        message: t(
+          'Data dan lampiran sudah diterima oleh administrasi sekolah. Surat akan diperiksa dan diteruskan kepada pihak yang dituju.',
+          'Your letter and attachment have been received by the school office. They will be reviewed and forwarded to the intended recipient.',
+        ),
       });
     } catch (error) {
       setStatus({
@@ -170,7 +173,7 @@ export default function IncomingMailForm() {
             <div
               role={status.type === 'success' ? 'status' : 'alert'}
               aria-live={status.type === 'success' ? 'polite' : 'assertive'}
-              className={`fixed bottom-4 left-4 z-50 flex w-[calc(100%-2rem)] items-start gap-3 rounded-xl border p-4 shadow-xl sm:bottom-6 sm:left-auto sm:right-6 sm:w-full sm:max-w-md ${
+              className={`fixed left-4 right-4 top-4 z-50 flex items-start gap-3 rounded-xl border p-4 shadow-xl sm:left-auto sm:right-6 sm:top-6 sm:w-full sm:max-w-md ${
                 status.type === 'success'
                   ? 'border-emerald-200 bg-white text-emerald-950 dark:border-emerald-400/30 dark:bg-slate-900 dark:text-emerald-100'
                   : 'border-rose-200 bg-white text-rose-950 dark:border-rose-400/30 dark:bg-slate-900 dark:text-rose-100'
@@ -181,7 +184,14 @@ export default function IncomingMailForm() {
               ) : (
                 <AlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-rose-600 dark:text-rose-300" />
               )}
-              <p className="flex-1 text-sm font-semibold leading-6">{status.message}</p>
+              <div className="min-w-0 flex-1">
+                {status.type === 'success' && (
+                  <p className="font-bold">
+                    {t('Surat berhasil dikirim!', 'Letter submitted successfully!')}
+                  </p>
+                )}
+                <p className="mt-1 text-sm leading-6">{status.message}</p>
+              </div>
               <button
                 type="button"
                 onClick={() => setStatus(null)}
