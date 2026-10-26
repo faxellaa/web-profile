@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState, type FormEvent } from 'react';
-import { AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { useState, type FormEvent } from 'react';
+import { AlertCircle, X } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
+import { isValidIndonesianMobileNumber } from '@/lib/phone';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_FILE_TYPES = [
@@ -17,16 +18,10 @@ const ALLOWED_FILE_TYPES = [
 const inputClassName =
   'w-full border border-slate-300/70 bg-white/70 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-white/15 dark:bg-slate-950/40 dark:text-white dark:placeholder:text-slate-500';
 
-export default function IncomingMailForm() {
+export default function IncomingMailForm({ onSuccess }: { onSuccess: (message: string) => void }) {
   const { t } = useLang();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-
-  useEffect(() => {
-    if (status?.type !== 'success') return;
-    const timeout = window.setTimeout(() => setStatus(null), 8000);
-    return () => window.clearTimeout(timeout);
-  }, [status]);
+  const [status, setStatus] = useState<{ type: 'error'; message: string } | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,6 +30,18 @@ export default function IncomingMailForm() {
     const form = event.currentTarget;
     const formData = new FormData(form);
     const file = formData.get('attachment');
+    const contact = formData.get('contact');
+
+    if (typeof contact !== 'string' || !isValidIndonesianMobileNumber(contact.trim())) {
+      setStatus({
+        type: 'error',
+        message: t(
+          'Masukkan nomor WhatsApp aktif berawalan 62 dengan 12–13 digit angka.',
+          'Enter an active WhatsApp number starting with 62 and containing 12–13 digits.',
+        ),
+      });
+      return;
+    }
 
     if (!(file instanceof File) || file.size === 0) {
       setStatus({ type: 'error', message: t('Lampiran wajib diunggah.', 'An attachment is required.') });
@@ -62,13 +69,10 @@ export default function IncomingMailForm() {
       }
 
       form.reset();
-      setStatus({
-        type: 'success',
-        message: t(
+      onSuccess(t(
           'Data dan lampiran sudah diterima oleh administrasi sekolah. Surat akan diperiksa dan diteruskan kepada pihak yang dituju.',
           'Your letter and attachment have been received by the school office. They will be reviewed and forwarded to the intended recipient.',
-        ),
-      });
+        ));
     } catch (error) {
       setStatus({
         type: 'error',
@@ -110,8 +114,29 @@ export default function IncomingMailForm() {
               <input className={inputClassName} name="institution" maxLength={160} required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-              <span>{t('Nomor telepon atau email', 'Phone number or email')}</span>
-              <input className={inputClassName} name="contact" autoComplete="email" maxLength={160} required />
+              <span>{t('Nomor WhatsApp aktif', 'Active WhatsApp number')}</span>
+              <input
+                className={inputClassName}
+                name="contact"
+                type="tel"
+                inputMode="numeric"
+                pattern="628[0-9]{9,10}"
+                minLength={12}
+                maxLength={13}
+                autoComplete="tel"
+                onInput={(event) => {
+                  event.currentTarget.value = event.currentTarget.value.replace(/\D/g, '').slice(0, 13);
+                }}
+                placeholder={t('Contoh: 6281234567890', 'Example: 6281234567890')}
+                aria-describedby="contact-help"
+                required
+              />
+              <span id="contact-help" className="block text-xs font-normal leading-5 text-slate-600 dark:text-slate-400">
+                {t(
+                  'Gunakan nomor WhatsApp yang aktif, awalan 62, dan 12–13 digit angka saja.',
+                  'Use an active WhatsApp number with the 62 prefix and 12–13 digits only.',
+                )}
+              </span>
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <span>{t('Nomor surat', 'Letter number')}</span>
@@ -136,7 +161,7 @@ export default function IncomingMailForm() {
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200 md:col-span-2">
               <span>{t('Lampiran (foto, PDF, Word; maksimal 5 MB)', 'Attachment (photo, PDF, Word; 5 MB maximum)')}</span>
               <input
-                className={`${inputClassName} file:mr-4 file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white dark:file:bg-white dark:file:text-slate-900`}
+                className={`${inputClassName} cursor-pointer file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-blue-700 dark:file:bg-white/10 dark:file:text-sky-300`}
                 name="attachment"
                 type="file"
                 accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp"
@@ -161,7 +186,7 @@ export default function IncomingMailForm() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-fit bg-slate-950 px-7 py-3.5 text-sm font-bold uppercase tracking-[0.15em] text-white transition-colors hover:bg-sky-700 disabled:cursor-wait disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-sky-200"
+                className="inline-flex min-h-12 w-fit self-end items-center justify-center rounded-xl bg-blue-700 px-6 py-3 text-sm font-bold text-white transition-colors hover:bg-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:cursor-wait disabled:opacity-60"
               >
                 {isSubmitting
                   ? t('Mengirim...', 'Sending...')
@@ -171,27 +196,12 @@ export default function IncomingMailForm() {
           </form>
           {status && (
             <div
-              role={status.type === 'success' ? 'status' : 'alert'}
-              aria-live={status.type === 'success' ? 'polite' : 'assertive'}
-              className={`fixed left-4 right-4 top-4 z-50 flex items-start gap-3 rounded-xl border p-4 shadow-xl sm:left-auto sm:right-6 sm:top-6 sm:w-full sm:max-w-md ${
-                status.type === 'success'
-                  ? 'border-emerald-200 bg-white text-emerald-950 dark:border-emerald-400/30 dark:bg-slate-900 dark:text-emerald-100'
-                  : 'border-rose-200 bg-white text-rose-950 dark:border-rose-400/30 dark:bg-slate-900 dark:text-rose-100'
-              }`}
+              role="alert"
+              aria-live="assertive"
+              className="fixed left-4 right-4 top-4 z-50 flex items-start gap-3 rounded-xl border border-rose-200 bg-white p-4 text-rose-950 shadow-xl dark:border-rose-400/30 dark:bg-slate-900 dark:text-rose-100 sm:left-auto sm:right-6 sm:top-6 sm:w-full sm:max-w-md"
             >
-              {status.type === 'success' ? (
-                <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-300" />
-              ) : (
-                <AlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-rose-600 dark:text-rose-300" />
-              )}
-              <div className="min-w-0 flex-1">
-                {status.type === 'success' && (
-                  <p className="font-bold">
-                    {t('Surat berhasil dikirim!', 'Letter submitted successfully!')}
-                  </p>
-                )}
-                <p className="mt-1 text-sm leading-6">{status.message}</p>
-              </div>
+              <AlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-rose-600 dark:text-rose-300" />
+              <p className="flex-1 text-sm font-semibold leading-6">{status.message}</p>
               <button
                 type="button"
                 onClick={() => setStatus(null)}

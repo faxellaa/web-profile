@@ -15,6 +15,8 @@ const BUCKET_NAME = 'spmb-documents';
 const DOCUMENT_KEYS = ['snspsDocument', 'graduationProof'] as const;
 
 type DocumentKey = (typeof DOCUMENT_KEYS)[number];
+import { isValidIndonesianMobileNumber } from '@/lib/phone';
+
 type JsonObject = Record<string, unknown>;
 type Applicant = {
   full_name: string;
@@ -59,24 +61,12 @@ function dateField(value: string): boolean {
     && new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value;
 }
 
-function normalizeWhatsappNumber(value: string): string {
-  if (!/^\d+$/.test(value)) {
-    throw new Error('Nomor WhatsApp hanya boleh berisi angka.');
+function validateWhatsappNumber(value: string): string {
+  if (!isValidIndonesianMobileNumber(value)) {
+    throw new Error('Nomor WhatsApp harus berawalan 62 dan terdiri dari 12–13 digit angka.');
   }
 
-  const normalized = value.startsWith('0')
-    ? `62${value.slice(1)}`
-    : value.startsWith('62')
-      ? value
-      : value.startsWith('8')
-        ? `62${value}`
-        : '';
-
-  if (!/^62[0-9]{8,13}$/.test(normalized)) {
-    throw new Error('Nomor WhatsApp tidak valid. Gunakan format angka 08xxxxxxxxxx atau 628xxxxxxxxxx.');
-  }
-
-  return normalized;
+  return value;
 }
 
 function parseApplicant(body: JsonObject): Applicant {
@@ -101,7 +91,7 @@ function parseApplicant(body: JsonObject): Applicant {
     birth_place: textField(body, 'birthPlace', 100),
     birth_date: birthDate,
     nik,
-    guardian_whatsapp: normalizeWhatsappNumber(textField(body, 'guardianWhatsapp', 15)),
+    guardian_whatsapp: validateWhatsappNumber(textField(body, 'guardianWhatsapp', 13)),
   };
 }
 

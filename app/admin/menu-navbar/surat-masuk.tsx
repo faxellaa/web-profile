@@ -258,7 +258,7 @@ export default function AdminSuratMasukPage() {
         'Tanggal diterima',
         'Nama pengirim',
         'Instansi / organisasi',
-        'Nomor telepon atau email',
+        'Nomor WhatsApp',
         'Nomor surat',
         'Tanggal surat',
         'Ditujukan kepada',
@@ -479,7 +479,7 @@ export default function AdminSuratMasukPage() {
                                 <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                                   {[
                                     { label: t('Instansi / organisasi', 'Institution / organization'), value: letter.institution },
-                                    { label: t('Nomor telepon atau email', 'Phone number or email'), value: letter.contact },
+                                    { label: t('Nomor WhatsApp', 'WhatsApp number'), value: letter.contact },
                                     { label: t('Nomor surat', 'Letter number'), value: letter.letter_number },
                                     { label: t('Tanggal surat', 'Letter date'), value: letter.letter_date || '—' },
                                     { label: t('Ditujukan kepada', 'Attention to'), value: letter.recipient },

@@ -74,21 +74,22 @@ Konten beranda mengambil data dari Supabase. Beberapa data memiliki nilai defaul
 
 ### Formulir SPMB online — `/layanan-publik/spmb-online`
 
-Form pendaftaran mengumpulkan data calon murid dan orang tua/wali, termasuk nama, nomor WhatsApp, asal sekolah, tempat/tanggal lahir, NIK, persetujuan orang tua/wali, dan dokumen yang diminta form.
+Form pendaftaran mengumpulkan data calon murid dan orang tua/wali, termasuk nama, nomor WhatsApp berawalan 62 dengan panjang 12–13 digit, asal sekolah, tempat/tanggal lahir, NIK, persetujuan orang tua/wali, dan dokumen yang diminta form.
 
 - Isian dan dokumen divalidasi di browser dan API.
 - Form meminta dua dokumen; jenis yang diterima mencakup PDF, DOC, DOCX, JPG, PNG, dan WebP. Batas ukuran masing-masing dokumen adalah 10 MB.
 - Dokumen diunggah langsung ke Supabase Storage menggunakan signed upload URL, lalu metadata pendaftaran dikirim ke API. Pola ini menghindari pengiriman seluruh berkas melalui payload Vercel Functions.
-- Setelah proses berhasil, halaman menampilkan konfirmasi dan tautan/tombol WhatsApp untuk komunikasi dengan panitia.
+- Setelah proses berhasil, halaman menampilkan konfirmasi dan tautan/tombol WhatsApp untuk komunikasi dengan panitia. Panel sukses tidak lagi menampilkan tombol untuk memulai pendaftaran lain.
 - Jika hasil pengiriman tidak dapat dipastikan karena gangguan koneksi/timeout, pengguna diberi instruksi untuk memastikan status kepada panitia sebelum mencoba kembali.
 
 ### Formulir surat masuk — `/layanan-publik/surat-masuk`
 
-Formulir ini digunakan untuk mengirim surat ke administrasi sekolah. Isian mencakup nama pengirim, instansi, kontak, nomor dan tanggal surat, tujuan, perihal, ringkasan/isi surat, serta lampiran.
+Formulir ini digunakan untuk mengirim surat ke administrasi sekolah. Isian mencakup nama pengirim, instansi, nomor WhatsApp aktif berawalan 62 dengan panjang 12–13 digit, nomor dan tanggal surat, tujuan, perihal, ringkasan/isi surat, serta lampiran.
 
 - Isian dan lampiran wajib diisi.
 - Lampiran menerima foto, PDF, DOC, dan DOCX, dengan batas 5 MB.
-- Form mengirim data dan lampiran ke endpoint server. Setelah berhasil, form direset dan notifikasi sukses tampil di bagian atas dengan konfirmasi bahwa surat/lampiran diterima serta akan diperiksa dan diteruskan oleh administrasi sekolah.
+- Form mengirim data dan lampiran ke endpoint server. Setelah berhasil, form direset, modal tertutup otomatis, lalu notifikasi sukses tampil di tengah layar dengan kartu lebih lebar dan teks rata tengah. Notifikasi mengonfirmasi bahwa surat/lampiran diterima serta akan diperiksa dan diteruskan oleh administrasi sekolah.
+- Tombol Kirim Surat berada di sisi kanan dan berwarna biru; tombol pemilih file menggunakan aksen biru yang konsisten dengan formulir SPMB.
 
 ## 4. Fitur panel admin
 

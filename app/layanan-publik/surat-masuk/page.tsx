@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { CheckCircle2, X } from 'lucide-react';
 import FormModal from '@/app/components/FormModal';
 import IncomingMailForm from '@/app/components/IncomingMailForm';
 import { useLang } from '@/lib/i18n';
@@ -8,7 +9,18 @@ import { useLang } from '@/lib/i18n';
 export default function SuratMasukPage() {
   const { t } = useLang();
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const closeForm = useCallback(() => setIsFormOpen(false), []);
+  const handleSuccess = useCallback((message: string) => {
+    setIsFormOpen(false);
+    setSuccessMessage(message);
+  }, []);
+
+  useEffect(() => {
+    if (!successMessage) return;
+    const timeout = window.setTimeout(() => setSuccessMessage(null), 8000);
+    return () => window.clearTimeout(timeout);
+  }, [successMessage]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-linear-to-b from-slate-100 via-slate-50 to-sky-100/70 dark:from-[#050816] dark:via-[#0a1024] dark:to-[#07101f]">
@@ -67,8 +79,29 @@ export default function SuratMasukPage() {
         title={t('Kirim Surat Masuk', 'Submit Incoming Mail')}
         onClose={closeForm}
       >
-        <IncomingMailForm />
+        <IncomingMailForm onSuccess={handleSuccess} />
       </FormModal>
+      {successMessage && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-emerald-200 bg-white p-6 text-center text-emerald-950 shadow-2xl dark:border-emerald-400/30 dark:bg-slate-900 dark:text-emerald-100 sm:p-8"
+        >
+          <CheckCircle2 aria-hidden="true" className="mx-auto h-8 w-8 text-emerald-600 dark:text-emerald-300" />
+          <div className="mt-3">
+            <p className="text-lg font-bold">{t('Surat berhasil dikirim!', 'Letter submitted successfully!')}</p>
+            <p className="mx-auto mt-2 max-w-lg text-sm leading-6">{successMessage}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessMessage(null)}
+            aria-label={t('Tutup notifikasi', 'Dismiss notification')}
+            className="absolute right-3 top-3 rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+          >
+            <X aria-hidden="true" className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

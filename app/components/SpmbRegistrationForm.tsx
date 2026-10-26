@@ -209,16 +209,6 @@ export default function SpmbRegistrationForm() {
           <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-200">
             {t('Pesan sudah disiapkan otomatis. Periksa lalu tekan Kirim di WhatsApp.', 'The message is prefilled. Review it, then tap Send in WhatsApp.')}
           </p>
-          <button
-            type="button"
-            onClick={() => {
-              setIsSuccess(false);
-              setWhatsappUrl('');
-            }}
-            className="mx-auto mt-6 flex min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-emerald-800"
-          >
-            {t('Isi pendaftaran lain', 'Submit another registration')}
-          </button>
         </div>
       ) : (
         <>
@@ -257,18 +247,20 @@ export default function SpmbRegistrationForm() {
               name="guardianWhatsapp"
               type="text"
               inputMode="numeric"
-              pattern="[0-9]{10,15}"
+              pattern="628[0-9]{9,10}"
               required
-              maxLength={15}
+              minLength={12}
+              maxLength={13}
               autoComplete="tel"
               onInput={(event) => {
-                event.currentTarget.value = event.currentTarget.value.replace(/\D/g, '').slice(0, 15);
+                event.currentTarget.value = event.currentTarget.value.replace(/\D/g, '').slice(0, 13);
               }}
-              placeholder={t('Contoh: 081234567890 atau 6281234567890', 'Example: 081234567890 or 6281234567890')}
+              placeholder={t('Contoh: 6281234567890', 'Example: 6281234567890')}
+              aria-describedby="guardian-whatsapp-help"
               className={fieldClassName}
             />
-            <span className="text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">
-              {t('Masukkan angka saja dan pastikan nomor aktif menerima WhatsApp.', 'Enter digits only and make sure the number can receive WhatsApp messages.')}
+            <span id="guardian-whatsapp-help" className="text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">
+              {t('Gunakan awalan 62 dan masukkan 12–13 digit angka saja.', 'Use the 62 prefix and enter 12–13 digits only.')}
             </span>
           </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 md:col-span-2">

@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { isValidIndonesianMobileNumber } from '@/lib/phone';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const MAX_REQUEST_SIZE = MAX_FILE_SIZE + 100_000;
@@ -111,13 +112,16 @@ export async function POST(request: Request) {
     fields = {
       sender_name: textField(formData, 'senderName', 120, true),
       institution: textField(formData, 'institution', 160, true),
-      contact: textField(formData, 'contact', 160, true),
+      contact: textField(formData, 'contact', 13, true),
       letter_number: textField(formData, 'letterNumber', 100, true),
       letter_date: letterDate,
       recipient: textField(formData, 'recipient', 120, true),
       subject: textField(formData, 'subject', 200, true),
       summary: textField(formData, 'summary', 5000, true),
     };
+    if (!isValidIndonesianMobileNumber(fields.contact)) {
+      throw new Error('Nomor WhatsApp harus berawalan 62 dan terdiri dari 12–13 digit angka.');
+    }
 
     const attachmentField = formData.get('attachment');
     if (!(attachmentField instanceof File) || attachmentField.size === 0) {
