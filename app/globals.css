@@ -37,6 +37,10 @@ a {
   outline-color: #7dd3fc;
 }
 
+.dark input[type="date"] {
+  color-scheme: dark;
+}
+
 button:active,
 a:active {
   scale: 1 !important;

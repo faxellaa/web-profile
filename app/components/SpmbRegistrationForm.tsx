@@ -3,11 +3,68 @@
 import { useState, type FormEvent } from 'react';
 import { CheckCircle2, MessageCircle } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
+import { supabase } from '@/lib/supabase';
 
 const fieldClassName =
   'min-h-12 w-full rounded-xl border border-slate-300/80 bg-white/80 px-4 py-3 text-base text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950/50 dark:text-white dark:placeholder:text-slate-500 sm:text-sm';
 const REQUEST_TIMEOUT_MS = 150_000;
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 const SCHOOL_WHATSAPP_NUMBER = '6285147777650';
+const ALLOWED_FILE_TYPES = new Set([
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]);
+const DOCUMENT_ACCEPT =
+  '.pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp';
+
+type UploadDescriptor = {
+  key: 'snspsDocument' | 'graduationProof';
+  path: string;
+  token: string;
+};
+
+type ApiResponse = {
+  ok?: boolean;
+  error?: string;
+  applicationId?: string;
+  uploads?: UploadDescriptor[];
+};
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isApiResponse(value: unknown): value is ApiResponse {
+  return isJsonObject(value)
+    && (value.ok === undefined || typeof value.ok === 'boolean')
+    && (value.error === undefined || typeof value.error === 'string')
+    && (value.applicationId === undefined || typeof value.applicationId === 'string')
+    && (value.uploads === undefined || (
+      Array.isArray(value.uploads)
+      && value.uploads.every((upload) => isJsonObject(upload)
+        && (upload.key === 'snspsDocument' || upload.key === 'graduationProof')
+        && typeof upload.path === 'string'
+        && typeof upload.token === 'string')
+    ));
+}
+
+async function readApiResponse(response: Response): Promise<ApiResponse> {
+  let result: unknown;
+  try {
+    result = await response.json();
+  } catch {
+    throw new Error('Server mengirim respons yang tidak valid.');
+  }
+
+  if (!isApiResponse(result)) {
+    throw new Error('Server mengirim respons yang tidak valid.');
+  }
+  return result;
+}
 
 export default function SpmbRegistrationForm() {
   const { t } = useLang();
@@ -27,18 +84,71 @@ export default function SpmbRegistrationForm() {
     const timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
-      const response = await fetch('/api/spmb', {
-        method: 'POST',
-        body: new FormData(form),
-        signal: controller.signal,
-      });
-      const result = (await response.json()) as { ok?: boolean; error?: string; applicationId?: string };
-      if (!response.ok || !result.ok || !result.applicationId) {
-        setMessage(result.error || t('Pendaftaran belum berhasil dikirim.', 'The registration could not be submitted.'));
-        return;
+      const formData = new FormData(form);
+      const snspsDocument = formData.get('snspsDocument');
+      const graduationProof = formData.get('graduationProof');
+      if (!(snspsDocument instanceof File) || !(graduationProof instanceof File)
+        || snspsDocument.size === 0 || graduationProof.size === 0) {
+        throw new Error(t('Kedua berkas pendukung wajib diunggah.', 'Both supporting documents are required.'));
+      }
+      if (snspsDocument.size > MAX_FILE_SIZE || graduationProof.size > MAX_FILE_SIZE) {
+        throw new Error(t('Ukuran setiap berkas maksimal 10 MB.', 'Each file must be 10 MB or smaller.'));
+      }
+      if (!ALLOWED_FILE_TYPES.has(snspsDocument.type) || !ALLOWED_FILE_TYPES.has(graduationProof.type)) {
+        throw new Error(t('Berkas harus berupa foto, PDF, atau Word (.doc/.docx).', 'Files must be photos, PDF, or Word (.doc/.docx).'));
       }
 
-      const submittedName = new FormData(form).get('fullName');
+      const payload = {
+        fullName: formData.get('fullName'),
+        nickname: formData.get('nickname'),
+        guardianWhatsapp: formData.get('guardianWhatsapp'),
+        schoolOrigin: formData.get('schoolOrigin'),
+        birthPlace: formData.get('birthPlace'),
+        birthDate: formData.get('birthDate'),
+        nik: formData.get('nik'),
+        guardianConsent: formData.get('guardianConsent') === 'on',
+        website: formData.get('website'),
+        snspsDocument: { type: snspsDocument.type, size: snspsDocument.size },
+        graduationProof: { type: graduationProof.type, size: graduationProof.size },
+      };
+
+      const prepareResponse = await fetch('/api/spmb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, action: 'prepare' }),
+        signal: controller.signal,
+      });
+      const prepareResult = await readApiResponse(prepareResponse);
+      if (!prepareResponse.ok || !prepareResult.ok || !prepareResult.applicationId || !prepareResult.uploads) {
+        throw new Error(prepareResult.error || t('Tautan unggah berkas belum berhasil dibuat.', 'Upload links could not be created.'));
+      }
+
+      const uploads = new Map(prepareResult.uploads.map((upload) => [upload.key, upload]));
+      const uploadTasks = [
+        { key: 'snspsDocument' as const, file: snspsDocument },
+        { key: 'graduationProof' as const, file: graduationProof },
+      ];
+      await Promise.all(uploadTasks.map(async ({ key, file }) => {
+        const upload = uploads.get(key);
+        if (!upload) throw new Error(t('Tautan unggah berkas tidak lengkap.', 'An upload link is missing.'));
+        const { error } = await supabase.storage
+          .from('spmb-documents')
+          .uploadToSignedUrl(upload.path, upload.token, file, { contentType: file.type });
+        if (error) throw new Error(error.message);
+      }));
+
+      const response = await fetch('/api/spmb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, action: 'submit', applicationId: prepareResult.applicationId }),
+        signal: controller.signal,
+      });
+      const result = await readApiResponse(response);
+      if (!response.ok || !result.ok || !result.applicationId) {
+        throw new Error(result.error || t('Pendaftaran belum berhasil dikirim.', 'The registration could not be submitted.'));
+      }
+
+      const submittedName = formData.get('fullName');
       const applicantName = typeof submittedName === 'string' ? submittedName.trim() : '';
       const whatsappMessage = t(
         `Assalamu’alaikum, saya orang tua/wali dari ${applicantName}. Saya sudah mengirim pendaftaran SPMB SMP Muhammadiyah Kembaran. Mohon konfirmasi bahwa pendaftaran kami sudah diterima. Terima kasih.`,
@@ -52,7 +162,9 @@ export default function SpmbRegistrationForm() {
       const timedOut = error instanceof Error && error.name === 'AbortError';
       setMessage(timedOut
         ? t('Waktu pengiriman terlalu lama. Status pendaftaran belum dapat dipastikan. Hubungi panitia sebelum mencoba mengirim ulang.', 'The request took too long and the registration status is unknown. Contact the committee before trying again.')
-        : t('Koneksi bermasalah. Status pendaftaran belum dapat dipastikan. Hubungi panitia sebelum mencoba mengirim ulang.', 'The connection failed and the registration status is unknown. Contact the committee before trying again.'));
+        : error instanceof Error && error.message !== 'Failed to fetch'
+          ? error.message
+          : t('Koneksi bermasalah. Status pendaftaran belum dapat dipastikan. Hubungi panitia sebelum mencoba mengirim ulang.', 'The connection failed and the registration status is unknown. Contact the committee before trying again.'));
     } finally {
       window.clearTimeout(timeoutId);
       setSubmitting(false);
@@ -70,8 +182,8 @@ export default function SpmbRegistrationForm() {
         </h2>
         <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
           {t(
-            'Isi data Ananda dengan benar. Kolom bertanda * wajib diisi. Panitia akan menggunakan data ini untuk proses penerimaan murid baru.',
-            'Please enter the applicant’s information accurately. Fields marked * are required. The committee will use this information for admission.',
+            'Isi seluruh data dengan benar dan unggah kedua berkas pendukung untuk melanjutkan pendaftaran.',
+            'Complete all information accurately and upload both supporting documents to continue the registration.',
           )}
         </p>
       </header>
@@ -132,42 +244,47 @@ export default function SpmbRegistrationForm() {
 
         <div className="grid gap-5 md:grid-cols-2">
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {t('Nama lengkap', 'Full name')} *
+            {t('Nama lengkap', 'Full name')}
             <input name="fullName" required maxLength={120} autoComplete="name" className={fieldClassName} />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {t('Nama panggilan', 'Nickname')} *
+            {t('Nama panggilan', 'Nickname')}
             <input name="nickname" required maxLength={80} className={fieldClassName} />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 md:col-span-2">
-            {t('Nomor WhatsApp orang tua/wali', 'Parent/guardian WhatsApp number')} *
+            {t('Nomor WhatsApp orang tua/wali', 'Parent/guardian WhatsApp number')}
             <input
               name="guardianWhatsapp"
-              type="tel"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]{10,15}"
               required
-              maxLength={30}
+              maxLength={15}
               autoComplete="tel"
-              placeholder={t('Contoh: 081234567890 atau +62 81234567890', 'Example: 081234567890 or +62 81234567890')}
+              onInput={(event) => {
+                event.currentTarget.value = event.currentTarget.value.replace(/\D/g, '').slice(0, 15);
+              }}
+              placeholder={t('Contoh: 081234567890 atau 6281234567890', 'Example: 081234567890 or 6281234567890')}
               className={fieldClassName}
             />
             <span className="text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">
-              {t('Pastikan nomor aktif dan dapat menerima pesan WhatsApp. Panitia mengirim kabar secara manual setelah memeriksa pendaftaran.', 'Use an active number that can receive WhatsApp messages. The committee will send updates manually after reviewing the application.')}
+              {t('Masukkan angka saja dan pastikan nomor aktif menerima WhatsApp.', 'Enter digits only and make sure the number can receive WhatsApp messages.')}
             </span>
           </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 md:col-span-2">
             {t('Asal sekolah', 'Previous school')}
-            <input name="schoolOrigin" maxLength={180} autoComplete="organization" className={fieldClassName} />
+            <input name="schoolOrigin" required maxLength={180} autoComplete="organization" className={fieldClassName} />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {t('Tempat lahir', 'Place of birth')} *
+            {t('Tempat lahir', 'Place of birth')}
             <input name="birthPlace" required maxLength={100} autoComplete="address-level2" className={fieldClassName} />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            {t('Tanggal lahir', 'Date of birth')} *
+            {t('Tanggal lahir', 'Date of birth')}
             <input name="birthDate" type="date" required className={fieldClassName} />
           </label>
           <label className="grid gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200 md:col-span-2">
-            {t('NIK pada Kartu Keluarga', 'National ID on Family Card')} *
+            {t('NIK pada Kartu Keluarga', 'National ID on Family Card')}
             <input
               name="nik"
               type="text"
@@ -176,6 +293,9 @@ export default function SpmbRegistrationForm() {
               minLength={16}
               maxLength={16}
               required
+              onInput={(event) => {
+                event.currentTarget.value = event.currentTarget.value.replace(/\D/g, '').slice(0, 16);
+              }}
               aria-describedby="nik-help"
               className={fieldClassName}
             />
@@ -187,18 +307,19 @@ export default function SpmbRegistrationForm() {
 
         <fieldset className="grid gap-5 border-t border-slate-200/80 pt-6 dark:border-white/10 md:grid-cols-2">
           <legend className="px-1 text-sm font-bold text-slate-800 dark:text-slate-100">
-            {t('Berkas pendukung (opsional)', 'Supporting documents (optional)')}
+            {t('Berkas pendukung', 'Supporting documents')}
           </legend>
           <label className="grid content-start gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
             {t('Foto/Scan SNSP', 'SNSP photo/scan')}
             <input
               name="snspsDocument"
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+              accept={DOCUMENT_ACCEPT}
+              required
               className={`${fieldClassName} cursor-pointer file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-blue-700 dark:file:bg-white/10 dark:file:text-sky-300`}
             />
             <span className="text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">
-              {t('1 berkas, PDF/JPG/PNG, maksimal 10 MB.', '1 file, PDF/JPG/PNG, up to 10 MB.')}
+              {t('Foto (JPG/PNG/WEBP), PDF, atau Word (.doc/.docx), maksimal 10 MB.', 'Photo (JPG/PNG/WEBP), PDF, or Word (.doc/.docx), up to 10 MB.')}
             </span>
           </label>
           <label className="grid content-start gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -206,11 +327,12 @@ export default function SpmbRegistrationForm() {
             <input
               name="graduationProof"
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+              accept={DOCUMENT_ACCEPT}
+              required
               className={`${fieldClassName} cursor-pointer file:mr-3 file:rounded-lg file:border-0 file:bg-blue-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-blue-700 dark:file:bg-white/10 dark:file:text-sky-300`}
             />
             <span className="text-xs font-normal leading-5 text-slate-500 dark:text-slate-400">
-              {t('1 berkas, PDF/JPG/PNG, maksimal 10 MB.', '1 file, PDF/JPG/PNG, up to 10 MB.')}
+              {t('Foto (JPG/PNG/WEBP), PDF, atau Word (.doc/.docx), maksimal 10 MB.', 'Photo (JPG/PNG/WEBP), PDF, or Word (.doc/.docx), up to 10 MB.')}
             </span>
           </label>
         </fieldset>

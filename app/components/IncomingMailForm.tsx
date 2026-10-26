@@ -1,10 +1,18 @@
 'use client';
 
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
+import { AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
-const ALLOWED_FILE_TYPES = ['application/pdf', 'image/jpeg', 'image/png'];
+const ALLOWED_FILE_TYPES = [
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+];
 
 const inputClassName =
   'w-full border border-slate-300/70 bg-white/70 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 dark:border-white/15 dark:bg-slate-950/40 dark:text-white dark:placeholder:text-slate-500';
@@ -14,6 +22,12 @@ export default function IncomingMailForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  useEffect(() => {
+    if (status?.type !== 'success') return;
+    const timeout = window.setTimeout(() => setStatus(null), 5000);
+    return () => window.clearTimeout(timeout);
+  }, [status]);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setStatus(null);
@@ -22,15 +36,17 @@ export default function IncomingMailForm() {
     const formData = new FormData(form);
     const file = formData.get('attachment');
 
-    if (file instanceof File && file.size > 0) {
-      if (file.size > MAX_FILE_SIZE) {
-        setStatus({ type: 'error', message: t('Ukuran lampiran maksimal 5 MB.', 'Attachments must be 5 MB or smaller.') });
-        return;
-      }
-      if (!ALLOWED_FILE_TYPES.includes(file.type)) {
-        setStatus({ type: 'error', message: t('Lampiran hanya boleh berupa PDF, JPG, atau PNG.', 'Attachments must be PDF, JPG, or PNG files.') });
-        return;
-      }
+    if (!(file instanceof File) || file.size === 0) {
+      setStatus({ type: 'error', message: t('Lampiran wajib diunggah.', 'An attachment is required.') });
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      setStatus({ type: 'error', message: t('Ukuran lampiran maksimal 5 MB.', 'Attachments must be 5 MB or smaller.') });
+      return;
+    }
+    if (!ALLOWED_FILE_TYPES.includes(file.type)) {
+      setStatus({ type: 'error', message: t('Lampiran harus berupa foto, PDF, atau Word (.doc/.docx).', 'Attachments must be a photo, PDF, or Word (.doc/.docx) file.') });
+      return;
     }
 
     setIsSubmitting(true);
@@ -83,45 +99,49 @@ export default function IncomingMailForm() {
 
           <form onSubmit={handleSubmit} className="grid gap-5 md:grid-cols-2">
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-              <span>{t('Nama pengirim', 'Sender name')} *</span>
+              <span>{t('Nama pengirim', 'Sender name')}</span>
               <input className={inputClassName} name="senderName" autoComplete="name" maxLength={120} required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <span>{t('Instansi / organisasi', 'Institution / organization')}</span>
-              <input className={inputClassName} name="institution" maxLength={160} />
+              <input className={inputClassName} name="institution" maxLength={160} required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
-              <span>{t('Nomor telepon atau email', 'Phone number or email')} *</span>
+              <span>{t('Nomor telepon atau email', 'Phone number or email')}</span>
               <input className={inputClassName} name="contact" autoComplete="email" maxLength={160} required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <span>{t('Nomor surat', 'Letter number')}</span>
-              <input className={inputClassName} name="letterNumber" maxLength={100} />
+              <input className={inputClassName} name="letterNumber" maxLength={100} required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <span>{t('Tanggal surat', 'Letter date')}</span>
-              <input className={inputClassName} name="letterDate" type="date" />
+              <input className={inputClassName} name="letterDate" type="date" required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <span>{t('Ditujukan kepada', 'Attention to')}</span>
-              <input className={inputClassName} name="recipient" maxLength={120} />
+              <input className={inputClassName} name="recipient" maxLength={120} required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200 md:col-span-2">
-              <span>{t('Perihal', 'Subject')} *</span>
+              <span>{t('Perihal', 'Subject')}</span>
               <input className={inputClassName} name="subject" maxLength={200} required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200 md:col-span-2">
-              <span>{t('Ringkasan / isi surat', 'Letter summary / message')} *</span>
+              <span>{t('Ringkasan / isi surat', 'Letter summary / message')}</span>
               <textarea className={`${inputClassName} min-h-32 resize-y`} name="summary" maxLength={5000} required />
             </label>
             <label className="space-y-2 text-sm font-semibold text-slate-800 dark:text-slate-200 md:col-span-2">
-              <span>{t('Lampiran (PDF, JPG, PNG; maksimal 5 MB)', 'Attachment (PDF, JPG, PNG; 5 MB maximum)')}</span>
+              <span>{t('Lampiran (foto, PDF, Word; maksimal 5 MB)', 'Attachment (photo, PDF, Word; 5 MB maximum)')}</span>
               <input
                 className={`${inputClassName} file:mr-4 file:border-0 file:bg-slate-900 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white dark:file:bg-white dark:file:text-slate-900`}
                 name="attachment"
                 type="file"
-                accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp"
+                required
               />
+              <span className="block text-xs font-normal text-slate-600 dark:text-slate-400">
+                {t('Foto (JPG/PNG/WEBP), PDF, atau Word (.doc/.docx).', 'Photo (JPG/PNG/WEBP), PDF, or Word (.doc/.docx).')}
+              </span>
             </label>
 
             <div aria-hidden="true" className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden">
@@ -133,21 +153,8 @@ export default function IncomingMailForm() {
 
             <div className="flex flex-col gap-4 md:col-span-2">
               <p className="text-xs leading-5 text-slate-600 dark:text-slate-400">
-                {t('Kolom bertanda * wajib diisi. Lampiran bersifat opsional.', 'Fields marked * are required. Attachments are optional.')}
+                {t('Semua kolom dan lampiran wajib diisi.', 'All fields and the attachment are required.')}
               </p>
-              {status && (
-                <p
-                  role="status"
-                  aria-live="polite"
-                  className={`border px-4 py-3 text-sm ${
-                    status.type === 'success'
-                      ? 'border-emerald-600/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
-                      : 'border-rose-600/30 bg-rose-500/10 text-rose-800 dark:text-rose-300'
-                  }`}
-                >
-                  {status.message}
-                </p>
-              )}
               <button
                 type="submit"
                 disabled={isSubmitting}
@@ -159,6 +166,32 @@ export default function IncomingMailForm() {
               </button>
             </div>
           </form>
+          {status && (
+            <div
+              role={status.type === 'success' ? 'status' : 'alert'}
+              aria-live={status.type === 'success' ? 'polite' : 'assertive'}
+              className={`fixed bottom-4 left-4 z-50 flex w-[calc(100%-2rem)] items-start gap-3 rounded-xl border p-4 shadow-xl sm:bottom-6 sm:left-auto sm:right-6 sm:w-full sm:max-w-md ${
+                status.type === 'success'
+                  ? 'border-emerald-200 bg-white text-emerald-950 dark:border-emerald-400/30 dark:bg-slate-900 dark:text-emerald-100'
+                  : 'border-rose-200 bg-white text-rose-950 dark:border-rose-400/30 dark:bg-slate-900 dark:text-rose-100'
+              }`}
+            >
+              {status.type === 'success' ? (
+                <CheckCircle2 aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-300" />
+              ) : (
+                <AlertCircle aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-rose-600 dark:text-rose-300" />
+              )}
+              <p className="flex-1 text-sm font-semibold leading-6">{status.message}</p>
+              <button
+                type="button"
+                onClick={() => setStatus(null)}
+                aria-label={t('Tutup notifikasi', 'Dismiss notification')}
+                className="rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-white"
+              >
+                <X aria-hidden="true" className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </section>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download } from 'lucide-react';
+import { ChevronDown, Download } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import AdminNavbar from '../components/navbar';
@@ -48,12 +48,24 @@ export default function AdminSpmbPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('Semua');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
-  const [narrowCards, setNarrowCards] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
   const [busyId, setBusyId] = useState('');
   const [busyDocumentPath, setBusyDocumentPath] = useState('');
+  const [expandedApplications, setExpandedApplications] = useState<Set<string>>(() => new Set());
+
+  const toggleApplicationDetails = (applicationId: string) => {
+    setExpandedApplications((current) => {
+      const next = new Set(current);
+      if (next.has(applicationId)) {
+        next.delete(applicationId);
+      } else {
+        next.add(applicationId);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -212,14 +224,6 @@ export default function AdminSpmbPage() {
           <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
             {t('Baru: menunggu pemeriksaan. Diverifikasi: data dan berkas sudah dicek. Diterima: lolos seleksi. Pesan WhatsApp perlu dikirim manual oleh admin.', 'New: awaiting review. Verified: details and documents checked. Accepted: passed selection. WhatsApp messages must be sent manually by an admin.')}
           </p>
-          <button
-            type="button"
-            aria-pressed={narrowCards}
-            onClick={() => setNarrowCards((current) => !current)}
-            className="mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300/80 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 dark:border-white/15 dark:bg-white/[0.04] dark:text-slate-200 dark:hover:bg-white/10"
-          >
-            {narrowCards ? t('Perlebar tampilan', 'Widen layout') : t('Perkecil tampilan', 'Narrow layout')}
-          </button>
         </header>
 
         {errorMessage && (
@@ -228,7 +232,7 @@ export default function AdminSpmbPage() {
           </p>
         )}
 
-        <section className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end sm:p-5">
+        <section className="grid gap-3 rounded-xl border border-slate-200/80 bg-white/80 p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end sm:p-4">
           <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
             {t('Cari nama pendaftar', 'Search applicant name')}
             <input
@@ -236,7 +240,7 @@ export default function AdminSpmbPage() {
               value={search}
               onChange={(event) => { setSearch(event.target.value); setPage(0); }}
               placeholder={t('Ketik nama lengkap…', 'Type a full name…')}
-              className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm"
+              className="min-h-10 rounded-lg border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm"
             />
           </label>
           <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -244,7 +248,7 @@ export default function AdminSpmbPage() {
             <select
               value={statusFilter}
               onChange={(event) => { setStatusFilter(event.target.value as StatusFilter); setPage(0); }}
-              className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950 dark:text-white"
+              className="min-h-10 rounded-lg border border-slate-300/80 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950 dark:text-white"
             >
               <option value="Semua">{t('Semua status', 'All statuses')}</option>
               {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
@@ -264,140 +268,176 @@ export default function AdminSpmbPage() {
             {t('Belum ada data pendaftar yang sesuai.', 'No matching applications were found.')}
           </p>
         ) : (
-          <section className="grid gap-4">
-            {applications.map((application) => {
-              const statusMessage = application.status === 'Baru'
-                ? t(
-                  `Assalamu’alaikum, kami dari SMP Muhammadiyah Kembaran telah menerima pendaftaran SPMB atas nama ${application.full_name}. Pendaftaran sedang menunggu pemeriksaan data dan berkas. Terima kasih.`,
-                  `Hello, SMP Muhammadiyah Kembaran has received the SPMB application for ${application.full_name}. It is waiting for the details and documents to be reviewed. Thank you.`,
-                )
-                : application.status === 'Diverifikasi'
-                  ? t(
-                    `Assalamu’alaikum, data dan berkas pendaftaran SPMB atas nama ${application.full_name} sudah diverifikasi. Panitia akan menghubungi kembali jika ada informasi selanjutnya.`,
-                    `Hello, the SPMB details and documents for ${application.full_name} have been verified. The committee will contact you if there is an update.`,
-                  )
-                  : t(
-                    `Assalamu’alaikum, selamat! Pendaftaran SPMB atas nama ${application.full_name} dinyatakan diterima di SMP Muhammadiyah Kembaran. Panitia akan menghubungi terkait langkah selanjutnya.`,
-                    `Hello, congratulations! ${application.full_name} has been accepted to SMP Muhammadiyah Kembaran. The committee will contact you about the next steps.`,
-                  );
-              const whatsappUrl = application.guardian_whatsapp
-                ? `https://wa.me/${application.guardian_whatsapp}?text=${encodeURIComponent(statusMessage)}`
-                : null;
-              const guidance = statusGuidance[application.status];
+          <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/85 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
+                <thead className="bg-slate-50/80 text-[11px] font-bold text-slate-500 dark:bg-white/[0.035] dark:text-slate-400">
+                  <tr>
+                    <th scope="col" className="w-48 px-4 py-3">{t('Tanggal daftar', 'Submitted')}</th>
+                    <th scope="col" className="px-4 py-3">{t('Calon siswa', 'Applicant')}</th>
+                    <th scope="col" className="w-[22rem] px-4 py-3 text-right">{t('Status pendaftaran', 'Application status')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/80 dark:divide-white/10">
+                  {applications.map((application) => {
+                    const statusMessage = application.status === 'Baru'
+                      ? t(
+                        `Assalamu’alaikum, kami dari SMP Muhammadiyah Kembaran telah menerima pendaftaran SPMB atas nama ${application.full_name}. Pendaftaran sedang menunggu pemeriksaan data dan berkas. Terima kasih.`,
+                        `Hello, SMP Muhammadiyah Kembaran has received the SPMB application for ${application.full_name}. It is waiting for the details and documents to be reviewed. Thank you.`,
+                      )
+                      : application.status === 'Diverifikasi'
+                        ? t(
+                          `Assalamu’alaikum, data dan berkas pendaftaran SPMB atas nama ${application.full_name} sudah diverifikasi. Panitia akan menghubungi kembali jika ada informasi selanjutnya.`,
+                          `Hello, the SPMB details and documents for ${application.full_name} have been verified. The committee will contact you if there is an update.`,
+                        )
+                        : t(
+                          `Assalamu’alaikum, selamat! Pendaftaran SPMB atas nama ${application.full_name} dinyatakan diterima di SMP Muhammadiyah Kembaran. Panitia akan menghubungi terkait langkah selanjutnya.`,
+                          `Hello, congratulations! ${application.full_name} has been accepted to SMP Muhammadiyah Kembaran. The committee will contact you about the next steps.`,
+                        );
+                    const whatsappUrl = application.guardian_whatsapp
+                      ? `https://wa.me/${application.guardian_whatsapp}?text=${encodeURIComponent(statusMessage)}`
+                      : null;
+                    const guidance = statusGuidance[application.status];
+                    const isExpanded = expandedApplications.has(application.id);
+                    const detailsId = `application-details-${application.id}`;
 
-              return (
-              <article key={application.id} className={`mx-auto w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-6 ${narrowCards ? 'max-w-3xl' : 'max-w-none'}`}>
-                <div className="grid gap-4">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {new Date(application.submitted_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
-                    </p>
-                    <h2 className="mt-1 break-words text-lg font-black text-slate-950 dark:text-white">
-                      {application.full_name}
-                    </h2>
-                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-                      {t('Nama panggilan:', 'Nickname:')} {application.nickname}
-                    </p>
-                  </div>
-                  <label className="grid w-full gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400">
-                    {t('Status pendaftaran', 'Application status')}
-                    <select
-                      value={application.status}
-                      disabled={busyId === application.id}
-                      onChange={(event) => void updateStatus(application, event.target.value as Application['status'])}
-                      className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 dark:border-white/15 dark:bg-slate-950 dark:text-white"
-                    >
-                      {statuses.map((status) => (
-                        <option key={status} value={status}>
-                          {t(status, status === 'Baru' ? 'New' : status === 'Diverifikasi' ? 'Verified' : 'Accepted')}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="font-normal leading-5">{t(guidance.id, guidance.en)}</span>
-                  </label>
-                </div>
+                    return (
+                      <Fragment key={application.id}>
+                        <tr className="transition-colors hover:bg-slate-50/80 dark:hover:bg-white/[0.025]">
+                          <td className="px-4 py-3 align-middle text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {new Date(application.submitted_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </td>
+                          <td className="min-w-0 px-4 py-3 align-middle">
+                            <p className="break-words text-sm font-bold text-slate-950 dark:text-white">{application.full_name}</p>
+                            <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                              {t('Nama panggilan:', 'Nickname:')} {application.nickname}
+                            </p>
+                          </td>
+                          <td className="px-4 py-3 align-middle">
+                            <div className="flex items-center justify-end gap-2">
+                              <label className="sr-only" htmlFor={`application-status-${application.id}`}>
+                                {t(`Status pendaftaran ${application.full_name}`, `Application status for ${application.full_name}`)}
+                              </label>
+                              <select
+                                id={`application-status-${application.id}`}
+                                value={application.status}
+                                disabled={busyId === application.id}
+                                onChange={(event) => void updateStatus(application, event.target.value as Application['status'])}
+                                className="min-h-9 w-full max-w-56 rounded-lg border border-slate-300/80 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 dark:border-white/15 dark:bg-slate-950 dark:text-white"
+                              >
+                                {statuses.map((status) => (
+                                  <option key={status} value={status}>
+                                    {t(status, status === 'Baru' ? 'New' : status === 'Diverifikasi' ? 'Verified' : 'Accepted')}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                aria-expanded={isExpanded}
+                                aria-controls={detailsId}
+                                aria-label={t('Lihat selengkapnya', 'See more')}
+                                title={t('Lihat selengkapnya', 'See more')}
+                                onClick={() => toggleApplicationDetails(application.id)}
+                                className="group relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 outline-none transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-sky-400/40 dark:hover:bg-sky-400/10 dark:hover:text-sky-200"
+                              >
+                                <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                <span className="pointer-events-none absolute right-0 top-full z-20 mt-2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 dark:bg-white dark:text-slate-900">
+                                  {t('Lihat selengkapnya', 'See more')}
+                                </span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr id={detailsId} className="bg-slate-50/60 dark:bg-white/[0.02]">
+                            <td colSpan={3} className="px-4 pb-4 pt-3">
+                              <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-white/10 dark:bg-slate-950/30 sm:p-4">
+                                <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                  <div className="min-w-0 rounded-lg bg-slate-50/80 p-3 dark:bg-white/[0.035]">
+                                    <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t('Asal sekolah', 'Previous school')}</dt>
+                                    <dd className="mt-1 break-words text-sm font-medium">{application.school_origin || '—'}</dd>
+                                  </div>
+                                  <div className="min-w-0 rounded-lg bg-slate-50/80 p-3 dark:bg-white/[0.035]">
+                                    <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t('WhatsApp orang tua/wali', 'Parent/guardian WhatsApp')}</dt>
+                                    <dd className="mt-1 break-words text-sm font-medium">{application.guardian_whatsapp ? `+${application.guardian_whatsapp}` : '—'}</dd>
+                                  </div>
+                                  <div className="min-w-0 rounded-lg bg-slate-50/80 p-3 dark:bg-white/[0.035]">
+                                    <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t('Tempat, tanggal lahir', 'Place and date of birth')}</dt>
+                                    <dd className="mt-1 break-words text-sm font-medium">{application.birth_place}, {new Date(`${application.birth_date}T00:00:00`).toLocaleDateString('id-ID')}</dd>
+                                  </div>
+                                  <div className="min-w-0 rounded-lg bg-slate-50/80 p-3 dark:bg-white/[0.035]">
+                                    <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">NIK</dt>
+                                    <dd className="mt-1 break-words font-mono text-sm font-medium">{application.nik}</dd>
+                                  </div>
+                                </dl>
 
-                <details className="mt-5 border-t border-slate-200/80 pt-4 dark:border-white/10">
-                  <summary className="w-fit cursor-pointer rounded-lg py-1 text-sm font-bold text-blue-700 outline-none hover:text-blue-900 focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-sky-300 dark:hover:text-sky-200">
-                    {t('Lihat data dan berkas', 'View details and documents')}
-                  </summary>
-                  <dl className="mt-4 grid gap-3 text-sm">
-                    <div className="min-w-0 border-b border-slate-200/70 pb-3 dark:border-white/10">
-                      <dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('Asal sekolah', 'Previous school')}</dt>
-                      <dd className="mt-1 break-words font-medium">{application.school_origin || '—'}</dd>
-                    </div>
-                    <div className="min-w-0 border-b border-slate-200/70 pb-3 dark:border-white/10">
-                      <dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('WhatsApp orang tua/wali', 'Parent/guardian WhatsApp')}</dt>
-                      <dd className="mt-1 break-words font-medium">{application.guardian_whatsapp ? `+${application.guardian_whatsapp}` : '—'}</dd>
-                    </div>
-                    <div className="border-b border-slate-200/70 pb-3 dark:border-white/10">
-                      <dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('Tempat, tanggal lahir', 'Place and date of birth')}</dt>
-                      <dd className="mt-1 break-words font-medium">{application.birth_place}, {new Date(`${application.birth_date}T00:00:00`).toLocaleDateString('id-ID')}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">NIK</dt>
-                      <dd className="mt-1 font-mono font-medium">{application.nik}</dd>
-                    </div>
-                  </dl>
-                  <div className="mt-5 grid gap-3">
-                    {([
-                      { path: application.snsps_document_path, label: t('Foto/Scan SNSP', 'SNSP photo/scan') },
-                      { path: application.graduation_proof_path, label: t('Bukti tanda kelulusan', 'Graduation certificate') },
-                    ] satisfies { path: string | null; label: string }[]).map(({ path, label }) => (
-                      <div key={label} className="flex min-w-0 flex-col gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/40 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="min-w-0 text-sm font-semibold">{label}</span>
-                        {!path ? (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">{t('Belum ada berkas', 'No file attached')}</span>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={busyDocumentPath === path}
-                            onClick={() => void downloadDocument(path)}
-                            className="inline-flex min-h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
-                          >
-                            <Download aria-hidden="true" className="h-4 w-4" />
-                            {busyDocumentPath === path ? t('Mengunduh…', 'Downloading…') : t('Unduh berkas', 'Download file')}
-                          </button>
+                                <p className="mt-3 text-xs leading-5 text-slate-500 dark:text-slate-400">{t(guidance.id, guidance.en)}</p>
+
+                                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                                  {([
+                                    { path: application.snsps_document_path, label: t('Foto/Scan SNSP', 'SNSP photo/scan') },
+                                    { path: application.graduation_proof_path, label: t('Bukti tanda kelulusan', 'Graduation certificate') },
+                                  ] satisfies { path: string | null; label: string }[]).map(({ path, label }) => (
+                                    <div key={label} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border border-slate-200/80 bg-white px-3 py-2 dark:border-white/10 dark:bg-white/[0.035]">
+                                      <span className="min-w-0 text-xs font-semibold">{label}</span>
+                                      {!path ? (
+                                        <span className="shrink-0 text-[11px] text-slate-500 dark:text-slate-400">{t('Belum ada', 'Missing')}</span>
+                                      ) : (
+                                        <button
+                                          type="button"
+                                          disabled={busyDocumentPath === path}
+                                          onClick={() => void downloadDocument(path)}
+                                          className="inline-flex min-h-8 shrink-0 items-center justify-center gap-1.5 rounded-md bg-blue-700 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+                                        >
+                                          <Download aria-hidden="true" className="h-3.5 w-3.5" />
+                                          {busyDocumentPath === path ? t('Mengunduh…', 'Downloading…') : t('Unduh berkas', 'Download file')}
+                                        </button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+
+                                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 dark:border-white/10">
+                                  {whatsappUrl ? (
+                                    <>
+                                      <p className="text-xs text-slate-600 dark:text-slate-300">
+                                        {t('WhatsApp orang tua/wali:', 'Parent/guardian WhatsApp:')} <span className="font-semibold">+{application.guardian_whatsapp}</span>
+                                      </p>
+                                      <a
+                                        href={whatsappUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex min-h-9 items-center justify-center rounded-lg bg-emerald-700 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-emerald-800"
+                                      >
+                                        {t('Siapkan kabar via WhatsApp', 'Prepare WhatsApp update')}
+                                      </a>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                                        {t('Nomor WhatsApp belum tersedia pada data lama ini.', 'No WhatsApp number is available for this legacy application.')}
+                                      </p>
+                                      <button
+                                        type="button"
+                                        disabled={busyId === application.id}
+                                        onClick={() => void deleteLegacyApplication(application)}
+                                        className="inline-flex min-h-9 items-center justify-center rounded-lg bg-red-700 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                      >
+                                        {busyId === application.id ? t('Menghapus…', 'Deleting…') : t('Hapus pendaftar lama', 'Delete legacy applicant')}
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
                         )}
-                      </div>
-                    ))}
-                  </div>
-                </details>
-
-                <div className="mt-5 border-t border-slate-200/80 pt-4 dark:border-white/10">
-                  {whatsappUrl ? (
-                    <div className="grid gap-3">
-                      <p className="text-sm text-slate-600 dark:text-slate-300">
-                        {t('WhatsApp orang tua/wali:', 'Parent/guardian WhatsApp:')} <span className="font-semibold">+{application.guardian_whatsapp}</span>
-                      </p>
-                      <a
-                        href={whatsappUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-emerald-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-emerald-800"
-                      >
-                        {t('Siapkan kabar via WhatsApp', 'Prepare WhatsApp update')}
-                      </a>
-                    </div>
-                  ) : (
-                    <div className="grid gap-3">
-                      <p className="text-sm text-slate-600 dark:text-slate-300">
-                        {t('Nomor WhatsApp belum tersedia. Pendaftar ini mengirim formulir sebelum kolom WhatsApp ditambahkan.', 'No WhatsApp number is available. This application was submitted before the WhatsApp field was added.')}
-                      </p>
-                      <button
-                        type="button"
-                        disabled={busyId === application.id}
-                        onClick={() => void deleteLegacyApplication(application)}
-                        className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-red-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        {busyId === application.id ? t('Menghapus…', 'Deleting…') : t('Hapus pendaftar lama', 'Delete legacy applicant')}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </article>
-              );
-            })}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 

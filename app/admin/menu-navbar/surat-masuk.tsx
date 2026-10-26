@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Download, FileSpreadsheet } from 'lucide-react';
+import { ChevronDown, Download, FileSpreadsheet } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import AdminNavbar from '../components/navbar';
@@ -36,23 +36,18 @@ type SpreadsheetRow = Pick<
   | 'recipient'
   | 'subject'
   | 'summary'
+  | 'attachment_path'
   | 'attachment_name'
   | 'status'
   | 'submitted_at'
 >;
 
 const PAGE_SIZE = 20;
-const EXPORT_THRESHOLD = 20;
+const EXPORT_THRESHOLD = 10;
 const EXPORT_BATCH_SIZE = 500;
+const SIGNED_URL_EXPIRY_SECONDS = 30 * 24 * 60 * 60;
+const SIGNED_URL_BATCH_SIZE = 100;
 const statuses = ['Baru', 'Diproses', 'Selesai'] as const;
-
-function csvCell(value: string | null): string {
-  let text = value ?? '';
-  if (/^[\s]*[=+\-@]/.test(text)) {
-    text = `'${text}`;
-  }
-  return `"${text.replace(/"/g, '""')}"`;
-}
 
 function letterStatusLabel(status: LetterStatus, t: (id: string, en: string) => string): string {
   if (status === 'Baru') return t('Baru', 'New');
@@ -74,6 +69,19 @@ export default function AdminSuratMasukPage() {
   const [busyId, setBusyId] = useState('');
   const [busyAttachmentPath, setBusyAttachmentPath] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [expandedLetters, setExpandedLetters] = useState<Set<string>>(() => new Set());
+
+  const toggleLetterDetails = (letterId: string) => {
+    setExpandedLetters((current) => {
+      const next = new Set(current);
+      if (next.has(letterId)) {
+        next.delete(letterId);
+      } else {
+        next.add(letterId);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     let active = true;
@@ -193,7 +201,7 @@ export default function AdminSuratMasukPage() {
       for (let offset = 0; ; offset += EXPORT_BATCH_SIZE) {
         const { data, error } = await supabase
           .from('incoming_letters')
-          .select('sender_name,institution,contact,letter_number,letter_date,recipient,subject,summary,attachment_name,status,submitted_at')
+          .select('sender_name,institution,contact,letter_number,letter_date,recipient,subject,summary,attachment_path,attachment_name,status,submitted_at')
           .order('submitted_at', { ascending: false })
           .range(offset, offset + EXPORT_BATCH_SIZE - 1);
 
@@ -208,39 +216,114 @@ export default function AdminSuratMasukPage() {
         if (batch.length < EXPORT_BATCH_SIZE) break;
       }
 
-      const rows = [
-        [
-          'Tanggal diterima',
-          'Nama pengirim',
-          'Instansi / organisasi',
-          'Nomor telepon atau email',
-          'Nomor surat',
-          'Tanggal surat',
-          'Ditujukan kepada',
-          'Perihal',
-          'Ringkasan / isi surat',
-          'Lampiran',
-          'Status',
-        ],
-        ...allLetters.map((letter) => [
+      const lettersWithAttachments = allLetters.filter((letter) => letter.attachment_path);
+      const signedUrls = new Map<string, string>();
+      for (let offset = 0; offset < lettersWithAttachments.length; offset += SIGNED_URL_BATCH_SIZE) {
+        const batch = lettersWithAttachments.slice(offset, offset + SIGNED_URL_BATCH_SIZE);
+        const paths = batch.map((letter) => letter.attachment_path).filter((path): path is string => Boolean(path));
+        const { data, error } = await supabase
+          .storage
+          .from('incoming-mail-attachments')
+          .createSignedUrls(paths, SIGNED_URL_EXPIRY_SECONDS);
+
+        if (error) {
+          console.error('Failed to create signed incoming mail attachment links:', error);
+          setErrorMessage(t('Tautan unduh lampiran gagal dibuat. Coba lagi.', 'Download links for attachments could not be created. Please try again.'));
+          return;
+        }
+
+        for (const item of data || []) {
+          if (item.error || !item.path || !item.signedUrl) {
+            console.error('Supabase returned an invalid signed incoming mail attachment link:', item.error);
+            setErrorMessage(t('Salah satu tautan unduh lampiran tidak berhasil dibuat.', 'A download link for one of the attachments could not be created.'));
+            return;
+          }
+          signedUrls.set(item.path, item.signedUrl);
+        }
+
+        if (paths.some((path) => !signedUrls.has(path))) {
+          setErrorMessage(t('Tautan unduh salah satu lampiran tidak tersedia.', 'A download link for one of the attachments is unavailable.'));
+          return;
+        }
+      }
+
+      const { default: ExcelJS } = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'SMP Muhammadiyah Kembaran';
+      workbook.created = new Date();
+      const worksheet = workbook.addWorksheet('Surat Masuk', {
+        views: [{ state: 'frozen', ySplit: 1 }],
+      });
+      const headers = [
+        'Tanggal diterima',
+        'Nama pengirim',
+        'Instansi / organisasi',
+        'Nomor telepon atau email',
+        'Nomor surat',
+        'Tanggal surat',
+        'Ditujukan kepada',
+        'Perihal',
+        'Ringkasan / isi surat',
+        'Lampiran',
+        'Status',
+      ];
+      worksheet.addTable({
+        name: 'TabelSuratMasuk',
+        ref: 'A1',
+        headerRow: true,
+        style: { theme: 'TableStyleMedium2', showRowStripes: true },
+        columns: headers.map((name) => ({ name, filterButton: true })),
+        rows: allLetters.map((letter) => [
           new Date(letter.submitted_at).toLocaleString('id-ID'),
           letter.sender_name,
           letter.institution,
           letter.contact,
           letter.letter_number,
-          letter.letter_date,
+          letter.letter_date || '',
           letter.recipient,
           letter.subject,
           letter.summary,
-          letter.attachment_name,
+          letter.attachment_name || (letter.attachment_path ? 'Unduh lampiran' : '—'),
           letterStatusLabel(letter.status, t),
         ]),
+      });
+      worksheet.columns = [
+        { width: 22 },
+        { width: 26 },
+        { width: 26 },
+        { width: 24 },
+        { width: 22 },
+        { width: 18 },
+        { width: 24 },
+        { width: 30 },
+        { width: 54 },
+        { width: 32 },
+        { width: 16 },
       ];
-      const csv = `\uFEFF${rows.map((row) => row.map(csvCell).join(',')).join('\r\n')}`;
-      const objectUrl = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      worksheet.getRow(1).height = 30;
+      worksheet.getColumn(9).alignment = { vertical: 'top', wrapText: true };
+      worksheet.getColumn(10).alignment = { vertical: 'top', wrapText: true };
+
+      allLetters.forEach((letter, index) => {
+        if (!letter.attachment_path) return;
+        const signedUrl = signedUrls.get(letter.attachment_path);
+        if (!signedUrl) return;
+        const attachmentCell = worksheet.getCell(index + 2, 10);
+        attachmentCell.value = {
+          text: letter.attachment_name || t('Unduh lampiran', 'Download attachment'),
+          hyperlink: signedUrl,
+          tooltip: t('Tautan berlaku selama 30 hari', 'Link expires in 30 days'),
+        };
+        attachmentCell.font = { color: { argb: 'FF2563EB' }, underline: true };
+      });
+
+      const fileBuffer = await workbook.xlsx.writeBuffer();
+      const objectUrl = URL.createObjectURL(new Blob([new Uint8Array(fileBuffer)], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }));
       const anchor = document.createElement('a');
       anchor.href = objectUrl;
-      anchor.download = `surat-masuk-${new Date().toISOString().slice(0, 10)}.csv`;
+      anchor.download = `surat-masuk-${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -276,7 +359,7 @@ export default function AdminSuratMasukPage() {
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
               >
                 <FileSpreadsheet aria-hidden="true" className="h-4 w-4" />
-                {exporting ? t('Menyiapkan spreadsheet…', 'Preparing spreadsheet…') : t('Unduh spreadsheet (.csv)', 'Download spreadsheet (.csv)')}
+                {exporting ? t('Menyiapkan spreadsheet…', 'Preparing spreadsheet…') : t('Unduh spreadsheet Excel (.xlsx)', 'Download Excel spreadsheet (.xlsx)')}
               </button>
               <span className="text-xs text-slate-500 dark:text-slate-400">
                 {t(`${totalLetters} surat tersimpan`, `${totalLetters} letters stored`)}
@@ -297,7 +380,7 @@ export default function AdminSuratMasukPage() {
           </p>
         )}
 
-        <section className="grid gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end sm:p-5">
+        <section className="grid gap-3 rounded-xl border border-slate-200/80 bg-white/80 p-3 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:grid-cols-[minmax(0,1fr)_14rem_auto] sm:items-end sm:p-4">
           <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
             {t('Cari nama pengirim', 'Search sender name')}
             <input
@@ -305,7 +388,7 @@ export default function AdminSuratMasukPage() {
               value={search}
               onChange={(event) => { setSearch(event.target.value); setPage(0); }}
               placeholder={t('Ketik nama pengirim…', 'Type a sender name…')}
-              className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm"
+              className="min-h-10 rounded-lg border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm"
             />
           </label>
           <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
@@ -313,7 +396,7 @@ export default function AdminSuratMasukPage() {
             <select
               value={statusFilter}
               onChange={(event) => { setStatusFilter(event.target.value as StatusFilter); setPage(0); }}
-              className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950 dark:text-white"
+              className="min-h-10 rounded-lg border border-slate-300/80 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 dark:border-white/15 dark:bg-slate-950 dark:text-white"
             >
               <option value="Semua">{t('Semua status', 'All statuses')}</option>
               {statuses.map((status) => <option key={status} value={status}>{letterStatusLabel(status, t)}</option>)}
@@ -331,72 +414,115 @@ export default function AdminSuratMasukPage() {
             {t('Belum ada surat masuk yang sesuai.', 'No matching incoming letters were found.')}
           </p>
         ) : (
-          <section className="grid gap-4">
-            {letters.map((letter) => (
-              <article key={letter.id} className="min-w-0 rounded-2xl border border-slate-200/80 bg-white/85 p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.04] sm:p-6">
-                <div className="grid gap-4 border-b border-slate-200/80 pb-4 dark:border-white/10 sm:grid-cols-[minmax(0,1fr)_14rem] sm:items-start">
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                      {new Date(letter.submitted_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
-                    </p>
-                    <h2 className="mt-1 break-words text-lg font-black text-slate-950 dark:text-white">{letter.sender_name}</h2>
-                    <p className="mt-1 break-words text-sm text-slate-600 dark:text-slate-300">{letter.subject}</p>
-                  </div>
-                  <label className="grid gap-1.5 text-xs font-bold text-slate-500 dark:text-slate-400">
-                    {t('Status surat', 'Letter status')}
-                    <select
-                      value={letter.status}
-                      disabled={busyId === letter.id}
-                      onChange={(event) => void updateStatus(letter, event.target.value as LetterStatus)}
-                      className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 dark:border-white/15 dark:bg-slate-950 dark:text-white"
-                    >
-                      {statuses.map((status) => <option key={status} value={status}>{letterStatusLabel(status, t)}</option>)}
-                    </select>
-                  </label>
-                </div>
+          <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/85 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
+                <thead className="bg-slate-50/80 text-[11px] font-bold text-slate-500 dark:bg-white/[0.035] dark:text-slate-400">
+                  <tr>
+                    <th scope="col" className="w-48 px-4 py-3">{t('Tanggal diterima', 'Received')}</th>
+                    <th scope="col" className="px-4 py-3">{t('Pengirim / perihal', 'Sender / subject')}</th>
+                    <th scope="col" className="w-[22rem] px-4 py-3 text-right">{t('Status surat', 'Letter status')}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200/80 dark:divide-white/10">
+                  {letters.map((letter) => {
+                    const isExpanded = expandedLetters.has(letter.id);
+                    const detailsId = `letter-details-${letter.id}`;
 
-                <details className="pt-4">
-                  <summary className="w-fit cursor-pointer rounded-lg py-1 text-sm font-bold text-blue-700 outline-none hover:text-blue-900 focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-sky-300 dark:hover:text-sky-200">
-                    {t('Lihat isi surat dan lampiran', 'View letter details and attachment')}
-                  </summary>
-                  <dl className="mt-4 grid gap-3 text-sm">
-                    {[
-                      { label: t('Instansi / organisasi', 'Institution / organization'), value: letter.institution },
-                      { label: t('Nomor telepon atau email', 'Phone number or email'), value: letter.contact },
-                      { label: t('Nomor surat', 'Letter number'), value: letter.letter_number },
-                      { label: t('Tanggal surat', 'Letter date'), value: letter.letter_date || '' },
-                      { label: t('Ditujukan kepada', 'Attention to'), value: letter.recipient },
-                      { label: t('Perihal', 'Subject'), value: letter.subject },
-                    ].map(({ label, value }) => (
-                      <div key={label} className="grid gap-1 border-b border-slate-200/70 pb-3 dark:border-white/10 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-                        <dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</dt>
-                        <dd className="break-words font-medium">{value || '—'}</dd>
-                      </div>
-                    ))}
-                    <div className="grid gap-1 border-b border-slate-200/70 pb-3 dark:border-white/10 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-                      <dt className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t('Ringkasan / isi surat', 'Letter summary / message')}</dt>
-                      <dd className="break-words whitespace-pre-wrap font-medium">{letter.summary}</dd>
-                    </div>
-                  </dl>
-                  {letter.attachment_path && (
-                    <div className="mt-4 flex flex-col gap-3 rounded-xl border border-slate-200/80 bg-slate-50/80 p-4 dark:border-white/10 dark:bg-slate-950/40 sm:flex-row sm:items-center sm:justify-between">
-                      <span className="min-w-0 break-all text-sm font-semibold">{letter.attachment_name || t('Lampiran surat', 'Letter attachment')}</span>
-                      <button
-                        type="button"
-                        disabled={busyAttachmentPath === letter.attachment_path}
-                        onClick={() => {
-                          if (letter.attachment_path) void downloadAttachment(letter.attachment_path);
-                        }}
-                        className="inline-flex min-h-10 w-full shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60 sm:w-auto"
-                      >
-                        <Download aria-hidden="true" className="h-4 w-4" />
-                        {busyAttachmentPath === letter.attachment_path ? t('Mengunduh…', 'Downloading…') : t('Unduh lampiran', 'Download attachment')}
-                      </button>
-                    </div>
-                  )}
-                </details>
-              </article>
-            ))}
+                    return (
+                      <Fragment key={letter.id}>
+                        <tr className="transition-colors hover:bg-slate-50/80 dark:hover:bg-white/[0.025]">
+                          <td className="px-4 py-3 align-middle text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {new Date(letter.submitted_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
+                          </td>
+                          <td className="min-w-0 px-4 py-3 align-middle">
+                            <p className="break-words text-sm font-bold text-slate-950 dark:text-white">{letter.sender_name}</p>
+                            <p className="mt-0.5 break-words text-xs text-slate-500 dark:text-slate-400">{letter.subject}</p>
+                          </td>
+                          <td className="px-4 py-3 align-middle">
+                            <div className="flex items-center justify-end gap-2">
+                              <label className="sr-only" htmlFor={`letter-status-${letter.id}`}>
+                                {t(`Status surat dari ${letter.sender_name}`, `Letter status for ${letter.sender_name}`)}
+                              </label>
+                              <select
+                                id={`letter-status-${letter.id}`}
+                                value={letter.status}
+                                disabled={busyId === letter.id}
+                                onChange={(event) => void updateStatus(letter, event.target.value as LetterStatus)}
+                                className="min-h-9 w-full max-w-56 rounded-lg border border-slate-300/80 bg-white px-3 text-sm font-semibold text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:opacity-60 dark:border-white/15 dark:bg-slate-950 dark:text-white"
+                              >
+                                {statuses.map((status) => (
+                                  <option key={status} value={status}>{letterStatusLabel(status, t)}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                aria-expanded={isExpanded}
+                                aria-controls={detailsId}
+                                aria-label={t('Lihat selengkapnya', 'See more')}
+                                title={t('Lihat selengkapnya', 'See more')}
+                                onClick={() => toggleLetterDetails(letter.id)}
+                                className="group relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 outline-none transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-sky-400/40 dark:hover:bg-sky-400/10 dark:hover:text-sky-200"
+                              >
+                                <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                <span className="pointer-events-none absolute right-0 top-full z-20 mt-2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 dark:bg-white dark:text-slate-900">
+                                  {t('Lihat selengkapnya', 'See more')}
+                                </span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr id={detailsId} className="bg-slate-50/60 dark:bg-white/[0.02]">
+                            <td colSpan={3} className="px-4 pb-4 pt-3">
+                              <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-white/10 dark:bg-slate-950/30 sm:p-4">
+                                <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                  {[
+                                    { label: t('Instansi / organisasi', 'Institution / organization'), value: letter.institution },
+                                    { label: t('Nomor telepon atau email', 'Phone number or email'), value: letter.contact },
+                                    { label: t('Nomor surat', 'Letter number'), value: letter.letter_number },
+                                    { label: t('Tanggal surat', 'Letter date'), value: letter.letter_date || '—' },
+                                    { label: t('Ditujukan kepada', 'Attention to'), value: letter.recipient },
+                                    { label: t('Perihal', 'Subject'), value: letter.subject },
+                                  ].map(({ label, value }) => (
+                                    <div key={label} className="min-w-0 rounded-lg bg-slate-50/80 p-3 dark:bg-white/[0.035]">
+                                      <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{label}</dt>
+                                      <dd className="mt-1 break-words text-sm font-medium">{value || '—'}</dd>
+                                    </div>
+                                  ))}
+                                  <div className="min-w-0 rounded-lg bg-slate-50/80 p-3 sm:col-span-2 xl:col-span-4 dark:bg-white/[0.035]">
+                                    <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t('Ringkasan / isi surat', 'Letter summary / message')}</dt>
+                                    <dd className="mt-1 break-words whitespace-pre-wrap text-sm font-medium">{letter.summary || '—'}</dd>
+                                  </div>
+                                </dl>
+                                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 dark:border-white/10">
+                                  <span className="min-w-0 break-all text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                    {letter.attachment_path
+                                      ? letter.attachment_name || t('Lampiran surat', 'Letter attachment')
+                                      : t('Belum ada lampiran', 'No attachment')}
+                                  </span>
+                                  {letter.attachment_path && (
+                                    <button
+                                      type="button"
+                                      disabled={busyAttachmentPath === letter.attachment_path}
+                                      onClick={() => void downloadAttachment(letter.attachment_path!)}
+                                      className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+                                    >
+                                      <Download aria-hidden="true" className="h-4 w-4" />
+                                      {busyAttachmentPath === letter.attachment_path ? t('Mengunduh…', 'Downloading…') : t('Unduh lampiran', 'Download attachment')}
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </section>
         )}
 
