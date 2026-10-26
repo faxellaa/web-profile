@@ -259,7 +259,7 @@ export default function Navbar() {
 
           <div className="flex shrink-0 items-center gap-2">
             <button type="button" onClick={toggleTheme} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 shadow-sm transition-colors hover:bg-slate-100 dark:border-white/15 dark:bg-slate-800 dark:hover:bg-slate-700 sm:h-10 sm:w-10" title={darkMode ? t('Beralih ke Mode Terang', 'Switch to Light Mode') : t('Beralih ke Mode Gelap', 'Switch to Dark Mode')} aria-label={darkMode ? t('Beralih ke Mode Terang', 'Switch to Light Mode') : t('Beralih ke Mode Gelap', 'Switch to Dark Mode')}>
-              {darkMode ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-blue-700" />}
+              {darkMode ? <Moon className="h-4 w-4 text-sky-400" /> : <Sun className="h-4 w-4 text-amber-500" />}
             </button>
             <button type="button" onClick={() => setLang(lang === 'id' ? 'en' : 'id')} className="flex h-9 items-center justify-center rounded-full border border-slate-200/80 bg-white/90 px-3 text-xs font-bold text-slate-700 shadow-sm transition-colors hover:bg-slate-100 dark:border-white/15 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 sm:h-10" aria-label={t('Ganti bahasa ke Inggris', 'Switch language to Indonesian')} title={t('Switch to English', 'Ganti ke Bahasa Indonesia')}>
               {lang === 'id' ? 'ID' : 'EN'}
