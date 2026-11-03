@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronDown, Download, FileSpreadsheet } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import AdminNavbar from '../components/navbar';
@@ -42,7 +42,7 @@ type SpreadsheetRow = Pick<
   | 'submitted_at'
 >;
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 5;
 const EXPORT_THRESHOLD = 10;
 const EXPORT_BATCH_SIZE = 500;
 const SIGNED_URL_EXPIRY_SECONDS = 30 * 24 * 60 * 60;
@@ -416,22 +416,26 @@ export default function AdminSuratMasukPage() {
         ) : (
           <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/85 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] table-fixed border-collapse text-left">
-                <thead className="bg-slate-50/80 text-[11px] font-bold text-slate-500 dark:bg-white/[0.035] dark:text-slate-400">
+              <table className="w-full min-w-[760px] table-fixed border-collapse text-left">
+                <thead className="bg-blue-100 text-[11px] font-bold text-blue-950 dark:bg-sky-950/70 dark:text-sky-100">
                   <tr>
+                    <th scope="col" className="w-12 px-3 py-3">{t('No.', 'No.')}</th>
                     <th scope="col" className="w-48 px-4 py-3">{t('Tanggal diterima', 'Received')}</th>
                     <th scope="col" className="px-4 py-3">{t('Pengirim / perihal', 'Sender / subject')}</th>
                     <th scope="col" className="w-[22rem] px-4 py-3 text-right">{t('Status surat', 'Letter status')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200/80 dark:divide-white/10">
-                  {letters.map((letter) => {
+                <tbody className="divide-y divide-blue-100/80 dark:divide-white/10">
+                  {letters.map((letter, index) => {
                     const isExpanded = expandedLetters.has(letter.id);
                     const detailsId = `letter-details-${letter.id}`;
 
                     return (
                       <Fragment key={letter.id}>
-                        <tr className="transition-colors hover:bg-slate-50/80 dark:hover:bg-white/[0.025]">
+                        <tr className="transition-colors odd:bg-white even:bg-blue-50/60 hover:bg-blue-100/70 dark:odd:bg-slate-950/25 dark:even:bg-sky-950/20 dark:hover:bg-sky-900/30">
+                          <td className="px-3 py-3 align-middle text-xs font-medium text-slate-500 dark:text-slate-400">
+                            {page * PAGE_SIZE + index + 1}
+                          </td>
                           <td className="px-4 py-3 align-middle text-xs font-medium text-slate-500 dark:text-slate-400">
                             {new Date(letter.submitted_at).toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })}
                           </td>
@@ -473,8 +477,8 @@ export default function AdminSuratMasukPage() {
                           </td>
                         </tr>
                         {isExpanded && (
-                          <tr id={detailsId} className="bg-slate-50/60 dark:bg-white/[0.02]">
-                            <td colSpan={3} className="px-4 pb-4 pt-3">
+                          <tr id={detailsId} className="bg-blue-50/70 dark:bg-sky-950/25">
+                            <td colSpan={4} className="px-4 pb-4 pt-3">
                               <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-white/10 dark:bg-slate-950/30 sm:p-4">
                                 <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                                   {[
@@ -526,24 +530,34 @@ export default function AdminSuratMasukPage() {
           </section>
         )}
 
-        {!loading && totalPages > 1 && (
-          <nav aria-label={t('Halaman surat masuk', 'Incoming mail pages')} className="flex items-center justify-center gap-4">
+        {!loading && letters.length > 0 && (
+          <nav aria-label={t('Halaman surat masuk', 'Incoming mail pages')} className="flex items-center justify-center gap-3">
             <button
               type="button"
               disabled={page === 0}
               onClick={() => setPage((current) => current - 1)}
-              className="min-h-11 rounded-xl border border-slate-300/80 px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/15"
+              aria-label={t('Halaman sebelumnya', 'Previous page')}
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-sky-300 dark:hover:bg-sky-400/10"
             >
-              {t('Sebelumnya', 'Previous')}
+              <ChevronLeft aria-hidden="true" className="h-5 w-5" />
             </button>
-            <span className="text-sm text-slate-500 dark:text-slate-400">{page + 1} / {totalPages}</span>
+            <span className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
+              <span
+                aria-current="page"
+                className="flex h-10 min-w-14 items-center justify-center rounded-md border border-blue-200 bg-blue-50 px-3 font-semibold text-blue-800 dark:border-sky-400/40 dark:bg-sky-400/10 dark:text-sky-200"
+              >
+                {page + 1}
+              </span>
+              <span>{t('dari', 'of')} {totalPages}</span>
+            </span>
             <button
               type="button"
               disabled={page + 1 >= totalPages}
               onClick={() => setPage((current) => current + 1)}
-              className="min-h-11 rounded-xl border border-slate-300/80 px-4 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/15"
+              aria-label={t('Halaman berikutnya', 'Next page')}
+              className="flex h-10 w-10 items-center justify-center rounded-lg text-blue-700 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-sky-300 dark:hover:bg-sky-400/10"
             >
-              {t('Berikutnya', 'Next')}
+              <ChevronRight aria-hidden="true" className="h-5 w-5" />
             </button>
           </nav>
         )}

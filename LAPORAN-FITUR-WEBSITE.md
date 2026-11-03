@@ -115,8 +115,8 @@ Semua halaman admin selain login dan alur pemulihan password dilindungi oleh gua
 
 ### Pengelolaan layanan publik
 
-- **`/admin/spmb`** — melihat daftar pendaftar, mencari/memfilter dan berpindah halaman, membuka detail, melihat atau mengunduh dokumen, mengubah status, serta menghapus data sesuai akses admin. Status yang digunakan: `Baru`, `Diverifikasi`, dan `Diterima`.
-- **`/admin/surat-masuk`** — melihat daftar surat, memfilter status, membuka detail, melihat atau mengunduh lampiran, dan memperbarui status (`Baru`, `Diproses`, `Selesai`).
+- **`/admin/spmb`** — melihat daftar pendaftar dalam tabel bernomor, lima baris per halaman dengan panah kiri/kanan dan indikator halaman, mencari/memfilter, membuka detail, melihat atau mengunduh dokumen, mengubah status, serta menghapus data sesuai akses admin. Status yang digunakan: `Baru`, `Diverifikasi`, dan `Diterima`.
+- **`/admin/surat-masuk`** — melihat daftar surat dalam tabel bernomor, lima baris per halaman dengan panah kiri/kanan dan indikator halaman, memfilter status, membuka detail, melihat atau mengunduh lampiran, dan memperbarui status (`Baru`, `Diproses`, `Selesai`).
 - Daftar Surat Masuk menggunakan tabel satu baris per surat dengan detail yang dapat dibuka.
 - Ekspor Surat Masuk tersedia sebagai spreadsheet Excel `.xlsx` setelah terkumpul 10 surat. Spreadsheet memuat kolom data formulir dan tautan lampiran signed URL yang berlaku terbatas.
 
