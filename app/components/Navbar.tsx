@@ -249,9 +249,6 @@ export default function Navbar() {
                   <Link href="/kontak" onClick={closeMobileMenu} aria-current={pathname === '/kontak' ? 'page' : undefined} className={`block px-3 py-2.5 text-left transition-colors ${isInformationActive ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400'}`}>
                     {t('Kontak', 'Contact')}
                   </Link>
-                  <Link href="/admin/login" onClick={closeMobileMenu} className="block px-3 py-2.5 text-left transition-colors hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-slate-800 dark:hover:text-sky-400">
-                    {t('Masuk Admin', 'Admin Login')}
-                  </Link>
                 </div>
               )}
             </div>
@@ -413,9 +410,6 @@ export default function Navbar() {
                 <div id="information-submenu-mobile" className="ml-3 mt-1 flex flex-col gap-1 border-l border-slate-200 pl-3 dark:border-white/10">
                   <Link href="/kontak" onClick={closeMobileMenu} aria-current={isInformationActive ? 'page' : undefined} className={`rounded-lg px-3 py-2 transition-colors ${isInformationActive ? 'bg-blue-50 font-semibold text-blue-700 dark:bg-slate-800 dark:text-sky-400' : 'hover:bg-blue-50 dark:hover:bg-slate-800'}`}>
                     {t('Kontak', 'Contact')}
-                  </Link>
-                  <Link href="/admin/login" onClick={closeMobileMenu} className="rounded-lg px-3 py-2 transition-colors hover:bg-blue-50 dark:hover:bg-slate-800">
-                    {t('Masuk Admin', 'Admin Login')}
                   </Link>
                 </div>
               )}
