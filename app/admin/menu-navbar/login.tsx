@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 import { setThemeWithTransition, syncThemeFromStorage, useThemeMode } from '@/lib/theme-transition';
+import { ADMIN_LAST_ACTIVITY_STORAGE_KEY } from '@/lib/admin-session';
 
 export default function AdminLogin() {
   const { lang, setLang, t } = useLang();
@@ -50,6 +51,16 @@ export default function AdminLogin() {
         }
         setLoading(false);
       } else if (data.session && data.user.app_metadata?.role === 'admin') {
+        try {
+          window.localStorage.setItem(ADMIN_LAST_ACTIVITY_STORAGE_KEY, String(Date.now()));
+        } catch (error) {
+          console.error('Failed to start admin activity tracking:', error);
+          const { error: signOutError } = await supabase.auth.signOut({ scope: 'local' });
+          if (signOutError) console.error('Failed to clean up admin session after activity tracking error:', signOutError);
+          setErrorMsg(t('Sesi admin belum dapat disiapkan. Silakan coba lagi.', 'The admin session could not be prepared. Please try again.'));
+          setLoading(false);
+          return;
+        }
         router.push('/admin/dashboard');
       } else if (data.session) {
         await supabase.auth.signOut();

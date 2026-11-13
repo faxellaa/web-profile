@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/lib/i18n';
 import { setThemeWithTransition, syncThemeFromStorage, useThemeMode } from '@/lib/theme-transition';
+import { ADMIN_LAST_ACTIVITY_STORAGE_KEY } from '@/lib/admin-session';
 
 type AdminNavLink = { href: string; label: string };
 type AdminNavItem =
@@ -59,6 +60,7 @@ export default function AdminNavbar() {
 
   const logout = async () => {
     await supabase.auth.signOut();
+    window.localStorage.removeItem(ADMIN_LAST_ACTIVITY_STORAGE_KEY);
     router.replace('/admin/login');
   };
 
