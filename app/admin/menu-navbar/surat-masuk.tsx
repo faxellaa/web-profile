@@ -1,11 +1,12 @@
 'use client';
 
-import { Fragment, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChevronDown, ChevronLeft, ChevronRight, Download, FileSpreadsheet } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
 import AdminNavbar from '../components/navbar';
+import AdminFormModal from '../components/AdminFormModal';
 
 type LetterStatus = 'Baru' | 'Diproses' | 'Selesai';
 type StatusFilter = 'Semua' | LetterStatus;
@@ -69,19 +70,7 @@ export default function AdminSuratMasukPage() {
   const [busyId, setBusyId] = useState('');
   const [busyAttachmentPath, setBusyAttachmentPath] = useState('');
   const [exporting, setExporting] = useState(false);
-  const [expandedLetters, setExpandedLetters] = useState<Set<string>>(() => new Set());
-
-  const toggleLetterDetails = (letterId: string) => {
-    setExpandedLetters((current) => {
-      const next = new Set(current);
-      if (next.has(letterId)) {
-        next.delete(letterId);
-      } else {
-        next.add(letterId);
-      }
-      return next;
-    });
-  };
+  const [selectedLetter, setSelectedLetter] = useState<IncomingLetter | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -417,7 +406,7 @@ export default function AdminSuratMasukPage() {
           <section className="overflow-hidden rounded-xl border border-slate-200/80 bg-white/85 shadow-sm dark:border-white/10 dark:bg-white/[0.04]">
             <div className="overflow-x-auto">
               <table className="w-full min-w-[760px] table-fixed border-collapse text-left">
-                <thead className="bg-blue-100 text-[11px] font-bold text-blue-950 dark:bg-sky-950/70 dark:text-sky-100">
+                <thead className="bg-slate-100 text-[11px] font-bold text-slate-700 dark:bg-sky-950/70 dark:text-sky-100">
                   <tr>
                     <th scope="col" className="w-12 px-3 py-3">{t('No.', 'No.')}</th>
                     <th scope="col" className="w-48 px-4 py-3">{t('Tanggal diterima', 'Received')}</th>
@@ -425,14 +414,10 @@ export default function AdminSuratMasukPage() {
                     <th scope="col" className="w-[22rem] px-4 py-3 text-right">{t('Status surat', 'Letter status')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-blue-100/80 dark:divide-white/10">
+                <tbody className="divide-y divide-slate-200/80 dark:divide-white/10">
                   {letters.map((letter, index) => {
-                    const isExpanded = expandedLetters.has(letter.id);
-                    const detailsId = `letter-details-${letter.id}`;
-
                     return (
-                      <Fragment key={letter.id}>
-                        <tr className="transition-colors odd:bg-white even:bg-blue-50/60 hover:bg-blue-100/70 dark:odd:bg-slate-950/25 dark:even:bg-sky-950/20 dark:hover:bg-sky-900/30">
+                      <tr key={letter.id} className="transition-colors odd:bg-white even:bg-slate-50/60 hover:bg-slate-100/70 dark:odd:bg-slate-950/25 dark:even:bg-sky-950/20 dark:hover:bg-sky-900/30">
                           <td className="px-3 py-3 align-middle text-xs font-medium text-slate-500 dark:text-slate-400">
                             {page * PAGE_SIZE + index + 1}
                           </td>
@@ -461,14 +446,12 @@ export default function AdminSuratMasukPage() {
                               </select>
                               <button
                                 type="button"
-                                aria-expanded={isExpanded}
-                                aria-controls={detailsId}
                                 aria-label={t('Lihat selengkapnya', 'See more')}
                                 title={t('Lihat selengkapnya', 'See more')}
-                                onClick={() => toggleLetterDetails(letter.id)}
+                                onClick={() => setSelectedLetter(letter)}
                                 className="group relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 outline-none transition-colors hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-white/10 dark:bg-white/[0.04] dark:text-slate-300 dark:hover:border-sky-400/40 dark:hover:bg-sky-400/10 dark:hover:text-sky-200"
                               >
-                                <ChevronDown aria-hidden="true" className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                <ChevronDown aria-hidden="true" className="h-4 w-4" />
                                 <span className="pointer-events-none absolute right-0 top-full z-20 mt-2 whitespace-nowrap rounded-md bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white opacity-0 shadow-lg transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 dark:bg-white dark:text-slate-900">
                                   {t('Lihat selengkapnya', 'See more')}
                                 </span>
@@ -476,52 +459,6 @@ export default function AdminSuratMasukPage() {
                             </div>
                           </td>
                         </tr>
-                        {isExpanded && (
-                          <tr id={detailsId} className="bg-blue-50/70 dark:bg-sky-950/25">
-                            <td colSpan={4} className="px-4 pb-4 pt-3">
-                              <div className="rounded-xl border border-slate-200/80 bg-white/80 p-3 dark:border-white/10 dark:bg-slate-950/30 sm:p-4">
-                                <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                                  {[
-                                    { label: t('Instansi / organisasi', 'Institution / organization'), value: letter.institution },
-                                    { label: t('Nomor WhatsApp', 'WhatsApp number'), value: letter.contact },
-                                    { label: t('Nomor surat', 'Letter number'), value: letter.letter_number },
-                                    { label: t('Tanggal surat', 'Letter date'), value: letter.letter_date || '—' },
-                                    { label: t('Ditujukan kepada', 'Attention to'), value: letter.recipient },
-                                    { label: t('Perihal', 'Subject'), value: letter.subject },
-                                  ].map(({ label, value }) => (
-                                    <div key={label} className="min-w-0 rounded-lg bg-slate-50/80 p-3 dark:bg-white/[0.035]">
-                                      <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{label}</dt>
-                                      <dd className="mt-1 break-words text-sm font-medium">{value || '—'}</dd>
-                                    </div>
-                                  ))}
-                                  <div className="min-w-0 rounded-lg bg-slate-50/80 p-3 sm:col-span-2 xl:col-span-4 dark:bg-white/[0.035]">
-                                    <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t('Ringkasan / isi surat', 'Letter summary / message')}</dt>
-                                    <dd className="mt-1 break-words whitespace-pre-wrap text-sm font-medium">{letter.summary || '—'}</dd>
-                                  </div>
-                                </dl>
-                                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 dark:border-white/10">
-                                  <span className="min-w-0 break-all text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                    {letter.attachment_path
-                                      ? letter.attachment_name || t('Lampiran surat', 'Letter attachment')
-                                      : t('Belum ada lampiran', 'No attachment')}
-                                  </span>
-                                  {letter.attachment_path && (
-                                    <button
-                                      type="button"
-                                      disabled={busyAttachmentPath === letter.attachment_path}
-                                      onClick={() => void downloadAttachment(letter.attachment_path!)}
-                                      className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
-                                    >
-                                      <Download aria-hidden="true" className="h-4 w-4" />
-                                      {busyAttachmentPath === letter.attachment_path ? t('Mengunduh…', 'Downloading…') : t('Unduh lampiran', 'Download attachment')}
-                                    </button>
-                                  )}
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
                     );
                   })}
                 </tbody>
@@ -562,6 +499,54 @@ export default function AdminSuratMasukPage() {
           </nav>
         )}
       </div>
+
+      <AdminFormModal
+        open={selectedLetter !== null}
+        title={t('Detail surat masuk', 'Incoming letter details')}
+        onClose={() => setSelectedLetter(null)}
+      >
+        {selectedLetter && (
+          <div className="grid gap-3">
+            <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                { label: t('Instansi / organisasi', 'Institution / organization'), value: selectedLetter.institution },
+                { label: t('Nomor WhatsApp', 'WhatsApp number'), value: selectedLetter.contact },
+                { label: t('Nomor surat', 'Letter number'), value: selectedLetter.letter_number },
+                { label: t('Tanggal surat', 'Letter date'), value: selectedLetter.letter_date || '—' },
+                { label: t('Ditujukan kepada', 'Attention to'), value: selectedLetter.recipient },
+                { label: t('Perihal', 'Subject'), value: selectedLetter.subject },
+              ].map(({ label, value }) => (
+                <div key={label} className="min-w-0 rounded-lg bg-slate-50/80 p-3 dark:bg-white/[0.035]">
+                  <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{label}</dt>
+                  <dd className="mt-1 break-words text-sm font-medium">{value || '—'}</dd>
+                </div>
+              ))}
+              <div className="min-w-0 rounded-lg bg-slate-50/80 p-3 sm:col-span-2 xl:col-span-4 dark:bg-white/[0.035]">
+                <dt className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">{t('Ringkasan / isi surat', 'Letter summary / message')}</dt>
+                <dd className="mt-1 break-words whitespace-pre-wrap text-sm font-medium">{selectedLetter.summary || '—'}</dd>
+              </div>
+            </dl>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200/80 pt-3 dark:border-white/10">
+              <span className="min-w-0 break-all text-xs font-semibold text-slate-600 dark:text-slate-300">
+                {selectedLetter.attachment_path
+                  ? selectedLetter.attachment_name || t('Lampiran surat', 'Letter attachment')
+                  : t('Belum ada lampiran', 'No attachment')}
+              </span>
+              {selectedLetter.attachment_path && (
+                <button
+                  type="button"
+                  disabled={busyAttachmentPath === selectedLetter.attachment_path}
+                  onClick={() => void downloadAttachment(selectedLetter.attachment_path!)}
+                  className="inline-flex min-h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-blue-700 px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+                >
+                  <Download aria-hidden="true" className="h-4 w-4" />
+                  {busyAttachmentPath === selectedLetter.attachment_path ? t('Mengunduh…', 'Downloading…') : t('Unduh lampiran', 'Download attachment')}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </AdminFormModal>
     </div>
   );
 }
