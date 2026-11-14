@@ -4,7 +4,6 @@ import { useCallback, useState } from 'react';
 import FormModal from '@/app/components/FormModal';
 import SpmbRegistrationForm from '@/app/components/SpmbRegistrationForm';
 import { useLang } from '@/lib/i18n';
-import { WA_ADMIN_URL } from '@/lib/site-links';
 
 export default function SpmbOnlinePage() {
   const { t } = useLang();
@@ -48,14 +47,6 @@ export default function SpmbOnlinePage() {
                 >
                   {t('Isi Formulir SPMB', 'Start Admission Form')}
                 </button>
-                <a
-                  href={WA_ADMIN_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/70 bg-white/50 px-6 py-3 text-center text-xs font-bold uppercase tracking-[0.14em] text-slate-900 backdrop-blur-2xl transition-colors hover:bg-white/80 dark:border-white/15 dark:bg-white/[0.06] dark:text-white dark:hover:bg-white/15 sm:text-sm"
-                >
-                  {t('Tanya Panitia', 'Ask the Committee')}
-                </a>
               </div>
             </div>
 

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Download, FileSpreadsheet } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, FileDown } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
+import { exportAdminReportToPdf, type AdminReport } from '@/lib/admin-report-pdf';
 import AdminNavbar from '../components/navbar';
 import AdminFormModal from '../components/AdminFormModal';
 
@@ -27,7 +28,7 @@ type IncomingLetter = {
   submitted_at: string;
 };
 
-type SpreadsheetRow = Pick<
+type ReportRow = Pick<
   IncomingLetter,
   | 'sender_name'
   | 'institution'
@@ -44,7 +45,6 @@ type SpreadsheetRow = Pick<
 >;
 
 const PAGE_SIZE = 5;
-const EXPORT_THRESHOLD = 10;
 const EXPORT_BATCH_SIZE = 500;
 const SIGNED_URL_EXPIRY_SECONDS = 30 * 24 * 60 * 60;
 const SIGNED_URL_BATCH_SIZE = 100;
@@ -181,12 +181,12 @@ export default function AdminSuratMasukPage() {
     }
   };
 
-  const exportSpreadsheet = async () => {
+  const exportReport = async () => {
     setExporting(true);
     setErrorMessage('');
 
     try {
-      const allLetters: SpreadsheetRow[] = [];
+      const allLetters: ReportRow[] = [];
       for (let offset = 0; ; offset += EXPORT_BATCH_SIZE) {
         const { data, error } = await supabase
           .from('incoming_letters')
@@ -195,8 +195,8 @@ export default function AdminSuratMasukPage() {
           .range(offset, offset + EXPORT_BATCH_SIZE - 1);
 
         if (error) {
-          console.error('Failed to export incoming mail spreadsheet:', error);
-          setErrorMessage(t('Spreadsheet surat masuk gagal dibuat. Coba lagi.', 'The incoming mail spreadsheet could not be created. Please try again.'));
+          console.error('Failed to export incoming mail report:', error);
+          setErrorMessage(t('Laporan surat masuk gagal dibuat. Coba lagi.', 'The incoming mail report could not be created. Please try again.'));
           return;
         }
 
@@ -236,90 +236,53 @@ export default function AdminSuratMasukPage() {
         }
       }
 
-      const { default: ExcelJS } = await import('exceljs');
-      const workbook = new ExcelJS.Workbook();
-      workbook.creator = 'SMP Muhammadiyah Kembaran';
-      workbook.created = new Date();
-      const worksheet = workbook.addWorksheet('Surat Masuk', {
-        views: [{ state: 'frozen', ySplit: 1 }],
-      });
-      const headers = [
-        'Tanggal diterima',
-        'Nama pengirim',
-        'Instansi / organisasi',
-        'Nomor WhatsApp',
-        'Nomor surat',
-        'Tanggal surat',
-        'Ditujukan kepada',
-        'Perihal',
-        'Ringkasan / isi surat',
-        'Lampiran',
-        'Status',
-      ];
-      worksheet.addTable({
-        name: 'TabelSuratMasuk',
-        ref: 'A1',
-        headerRow: true,
-        style: { theme: 'TableStyleMedium2', showRowStripes: true },
-        columns: headers.map((name) => ({ name, filterButton: true })),
-        rows: allLetters.map((letter) => [
-          new Date(letter.submitted_at).toLocaleString('id-ID'),
-          letter.sender_name,
-          letter.institution,
-          letter.contact,
-          letter.letter_number,
-          letter.letter_date || '',
-          letter.recipient,
-          letter.subject,
-          letter.summary,
-          letter.attachment_name || (letter.attachment_path ? 'Unduh lampiran' : '—'),
-          letterStatusLabel(letter.status, t),
-        ]),
-      });
-      worksheet.columns = [
-        { width: 22 },
-        { width: 26 },
-        { width: 26 },
-        { width: 24 },
-        { width: 22 },
-        { width: 18 },
-        { width: 24 },
-        { width: 30 },
-        { width: 54 },
-        { width: 32 },
-        { width: 16 },
-      ];
-      worksheet.getRow(1).height = 30;
-      worksheet.getColumn(9).alignment = { vertical: 'top', wrapText: true };
-      worksheet.getColumn(10).alignment = { vertical: 'top', wrapText: true };
+      const report: AdminReport = {
+        title: 'Laporan Data Surat Masuk',
+        fileName: `surat-masuk-${new Date().toISOString().slice(0, 10)}`,
+        period: `Periode: Seluruh data / ${new Date().toLocaleDateString('id-ID', { dateStyle: 'long' })}`,
+        columns: [
+          { header: 'No.', width: 8 },
+          { header: 'Tanggal diterima', width: 21 },
+          { header: 'Nama pengirim', width: 26 },
+          { header: 'Instansi / organisasi', width: 26 },
+          { header: 'Nomor WhatsApp', width: 24 },
+          { header: 'Nomor surat', width: 22 },
+          { header: 'Tanggal surat', width: 18 },
+          { header: 'Ditujukan kepada', width: 24 },
+          { header: 'Perihal', width: 30 },
+          { header: 'Ringkasan / isi surat', width: 54 },
+          { header: 'Lampiran', width: 32 },
+          { header: 'Status', width: 16 },
+        ],
+        rows: allLetters.map((letter, index) => {
+          const attachment = letter.attachment_path
+            ? {
+              text: letter.attachment_name || t('Unduh lampiran', 'Download attachment'),
+              hyperlink: signedUrls.get(letter.attachment_path),
+              tooltip: t('Tautan berlaku selama 30 hari', 'Link expires in 30 days'),
+            }
+            : '—';
+          return [
+            String(index + 1),
+            new Date(letter.submitted_at).toLocaleString('id-ID'),
+            letter.sender_name,
+            letter.institution,
+            letter.contact,
+            letter.letter_number,
+            letter.letter_date || '—',
+            letter.recipient,
+            letter.subject,
+            letter.summary,
+            attachment,
+            letterStatusLabel(letter.status, t),
+          ];
+        }),
+      };
 
-      allLetters.forEach((letter, index) => {
-        if (!letter.attachment_path) return;
-        const signedUrl = signedUrls.get(letter.attachment_path);
-        if (!signedUrl) return;
-        const attachmentCell = worksheet.getCell(index + 2, 10);
-        attachmentCell.value = {
-          text: letter.attachment_name || t('Unduh lampiran', 'Download attachment'),
-          hyperlink: signedUrl,
-          tooltip: t('Tautan berlaku selama 30 hari', 'Link expires in 30 days'),
-        };
-        attachmentCell.font = { color: { argb: 'FF2563EB' }, underline: true };
-      });
-
-      const fileBuffer = await workbook.xlsx.writeBuffer();
-      const objectUrl = URL.createObjectURL(new Blob([new Uint8Array(fileBuffer)], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      }));
-      const anchor = document.createElement('a');
-      anchor.href = objectUrl;
-      anchor.download = `surat-masuk-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      await exportAdminReportToPdf(report);
     } catch (error) {
-      console.error('Unexpected error while creating incoming mail spreadsheet:', error);
-      setErrorMessage(t('Terjadi kesalahan saat membuat spreadsheet surat masuk.', 'An error occurred while creating the incoming mail spreadsheet.'));
+      console.error('Unexpected error while creating the incoming mail report:', error);
+      setErrorMessage(t('Terjadi kesalahan saat membuat laporan surat masuk.', 'An error occurred while creating the incoming mail report.'));
     } finally {
       setExporting(false);
     }
@@ -339,29 +302,23 @@ export default function AdminSuratMasukPage() {
               {t('Kelola surat masuk langsung di admin. Data baru disimpan di database sekolah, bukan spreadsheet online.', 'Manage incoming mail in the admin panel. New submissions are stored in the school database, not an online spreadsheet.')}
             </p>
           </div>
-          {totalLetters >= EXPORT_THRESHOLD && (
-            <div className="grid gap-1 sm:justify-items-end">
+          <div className="grid gap-1 sm:justify-items-end">
+            <div className="flex flex-wrap gap-2 sm:justify-end">
               <button
                 type="button"
                 disabled={exporting}
-                onClick={() => void exportSpreadsheet()}
+                onClick={() => void exportReport()}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
               >
-                <FileSpreadsheet aria-hidden="true" className="h-4 w-4" />
-                {exporting ? t('Menyiapkan spreadsheet…', 'Preparing spreadsheet…') : t('Unduh spreadsheet Excel (.xlsx)', 'Download Excel spreadsheet (.xlsx)')}
+                <FileDown aria-hidden="true" className="h-4 w-4" />
+                {exporting ? t('Menyiapkan PDF…', 'Preparing PDF…') : t('Ekspor PDF', 'Export PDF')}
               </button>
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                {t(`${totalLetters} surat tersimpan`, `${totalLetters} letters stored`)}
-              </span>
             </div>
-          )}
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {t(`${totalLetters} surat tersimpan`, `${totalLetters} letters stored`)}
+            </span>
+          </div>
         </header>
-
-        {totalLetters < EXPORT_THRESHOLD && (
-          <p className="rounded-xl border border-blue-200/80 bg-blue-50/70 px-4 py-3 text-xs leading-5 text-blue-800 dark:border-sky-400/20 dark:bg-sky-400/[0.06] dark:text-sky-200">
-            {t(`Spreadsheet unduhan akan tersedia otomatis setelah terkumpul ${EXPORT_THRESHOLD} surat.`, `The spreadsheet download will appear automatically after ${EXPORT_THRESHOLD} letters have been received.`)}
-          </p>
-        )}
 
         {errorMessage && (
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">

@@ -14,6 +14,7 @@ type GalleryItem = {
   id: string;
   media_type: 'photo' | 'video';
   title: string;
+  title_en?: string | null;
   media_url: string;
   storage_path: string | null;
   created_at: string;
@@ -27,6 +28,7 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
   const [items, setItems] = useState<GalleryItem[]>([]);
   const [editing, setEditing] = useState<GalleryItem | null>(null);
   const [title, setTitle] = useState('');
+  const [titleEn, setTitleEn] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
@@ -38,7 +40,7 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
   const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('school_gallery_items')
-      .select('id,media_type,title,media_url,storage_path,created_at')
+      .select('*')
       .eq('media_type', mediaType)
       .order('media_type')
       .order('sort_order')
@@ -80,7 +82,9 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
     let storagePath = editing?.media_type === 'photo' ? editing.storage_path : null;
 
     try {
-      if (!title.trim()) throw new Error(t('Judul/keterangan wajib diisi.', 'A title or caption is required.'));
+      if (!title.trim() || !titleEn.trim()) {
+        throw new Error(t('Judul/keterangan dalam Bahasa Indonesia dan Bahasa Inggris wajib diisi.', 'Titles or captions in both Indonesian and English are required.'));
+      }
       if (mediaType === 'photo') {
         if (!file && !editing) throw new Error(t('Pilih foto terlebih dahulu.', 'Choose a photo first.'));
         if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
@@ -102,6 +106,7 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
       const payload = {
         media_type: mediaType,
         title: title.trim(),
+        title_en: titleEn.trim(),
         media_url: mediaUrl,
         storage_path: storagePath,
       };
@@ -112,6 +117,7 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
 
       const cleanupSucceeded = !editing?.storage_path || !file || await deleteSchoolImage(editing.storage_path);
       setTitle('');
+      setTitleEn('');
       setVideoUrl('');
       setFile(null);
       setEditing(null);
@@ -165,6 +171,7 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
     setMessage('');
     setEditing(null);
     setTitle('');
+    setTitleEn('');
     setVideoUrl('');
     setFile(null);
     setFormOpen(true);
@@ -174,6 +181,7 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
     setMessage('');
     setEditing(item);
     setTitle(item.title);
+    setTitleEn(item.title_en || '');
     setVideoUrl(item.media_type === 'video' ? item.media_url : '');
     setFile(null);
     setFormOpen(true);
@@ -220,6 +228,7 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
                     <div className="min-w-0">
                       <p className="text-[10px] font-bold uppercase tracking-wider text-blue-700 dark:text-sky-300">{mediaType === 'photo' ? t('Foto', 'Photo') : t('Video YouTube', 'YouTube video')}</p>
                       <h3 className="mt-1 break-words text-sm font-bold">{item.title}</h3>
+                      {item.title_en && <p className="mt-1 break-words text-xs text-slate-500 dark:text-slate-400">{item.title_en}</p>}
                       {item.media_type === 'video' && <a href={item.media_url} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-xs text-slate-500 underline dark:text-slate-400">{item.media_url}</a>}
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -246,8 +255,12 @@ export default function AdminGalleryPage({ mediaType }: { mediaType: MediaType }
                 {mediaType === 'photo' ? t('Jenis: Foto', 'Type: Photo') : t('Jenis: Video YouTube', 'Type: YouTube video')}
               </p>
               <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
-                {t('Judul / keterangan', 'Title / caption')}
+                {t('Judul / keterangan (Bahasa Indonesia)', 'Title / caption (Indonesian)')}
                 <input required maxLength={180} value={title} onChange={(event) => setTitle(event.target.value)} className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm" />
+              </label>
+              <label className="grid gap-2 text-xs font-bold text-slate-600 dark:text-slate-300">
+                {t('Judul / keterangan (Bahasa Inggris)', 'Title / caption (English)')}
+                <input required maxLength={180} value={titleEn} onChange={(event) => setTitleEn(event.target.value)} className="min-h-11 rounded-xl border border-slate-300/80 bg-white px-3 text-base font-normal text-slate-900 dark:border-white/15 dark:bg-slate-950 dark:text-white sm:text-sm" />
               </label>
               {mediaType === 'photo' ? (
                 <div className="space-y-2">

@@ -22,7 +22,7 @@ export default function GuruStaffPage() {
   const [teacherFile, setTeacherFile] = useState<File | null>(null);
   const [removeTeacherPhoto, setRemoveTeacherPhoto] = useState(false);
   const [editing, setEditing] = useState<Teacher | null>(null);
-  const [headmaster, setHeadmaster] = useState({ name: HEADMASTER_NAME, speech: '', photoUrl: '', photoPath: '' });
+  const [headmaster, setHeadmaster] = useState({ name: HEADMASTER_NAME, speech: '', speechEn: '', photoUrl: '', photoPath: '' });
   const [headmasterFile, setHeadmasterFile] = useState<File | null>(null);
   const [removeHeadmasterPhoto, setRemoveHeadmasterPhoto] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -45,7 +45,13 @@ export default function GuruStaffPage() {
     if (statsResult.error) {
       console.error('Failed to load principal information:', statsResult.error);
     } else if (statsResult.data) {
-      setHeadmaster({ name: HEADMASTER_NAME, speech: statsResult.data.headmaster_speech || '', photoUrl: statsResult.data.headmaster_photo_url || '', photoPath: statsResult.data.headmaster_photo_path || '' });
+      setHeadmaster({
+        name: HEADMASTER_NAME,
+        speech: statsResult.data.headmaster_speech || '',
+        speechEn: statsResult.data.headmaster_speech_en || '',
+        photoUrl: statsResult.data.headmaster_photo_url || '',
+        photoPath: statsResult.data.headmaster_photo_path || '',
+      });
     }
   }, [t]);
 
@@ -124,7 +130,14 @@ export default function GuruStaffPage() {
       }
       const { data: existing, error: existingError } = await supabase.from('school_stats').select('id').limit(1);
       if (existingError) throw existingError;
-      const payload = { headmaster_name: headmaster.name, headmaster_speech: headmaster.speech, headmaster_photo_url: photoUrl, headmaster_photo_path: photoPath, updated_at: new Date().toISOString() };
+      const payload = {
+        headmaster_name: headmaster.name,
+        headmaster_speech: headmaster.speech,
+        headmaster_speech_en: headmaster.speechEn,
+        headmaster_photo_url: photoUrl,
+        headmaster_photo_path: photoPath,
+        updated_at: new Date().toISOString(),
+      };
       const result = existing?.[0]
         ? await supabase.from('school_stats').update(payload).eq('id', existing[0].id)
         : await supabase.from('school_stats').insert(payload);
@@ -280,7 +293,8 @@ export default function GuruStaffPage() {
               removeImageLabel={t('Hapus foto', 'Remove photo')}
               restoreImageLabel={t('Batalkan hapus foto', 'Undo photo removal')}
             />
-            <label className="grid gap-2 text-xs font-bold">{t('Isi sambutan', 'Message content')}<textarea required rows={6} value={headmaster.speech} onChange={(event) => setHeadmaster({ ...headmaster, speech: event.target.value })} className="rounded-xl border bg-slate-50 p-3 text-sm font-normal leading-relaxed dark:border-white/10 dark:bg-slate-900" /></label>
+            <label className="grid gap-2 text-xs font-bold">{t('Isi sambutan (Bahasa Indonesia)', 'Message content (Indonesian)')}<textarea required rows={6} value={headmaster.speech} onChange={(event) => setHeadmaster({ ...headmaster, speech: event.target.value })} className="rounded-xl border bg-slate-50 p-3 text-sm font-normal leading-relaxed dark:border-white/10 dark:bg-slate-900" /></label>
+            <label className="grid gap-2 text-xs font-bold">{t('Isi sambutan (Bahasa Inggris)', 'Message content (English)')}<textarea required rows={6} value={headmaster.speechEn} onChange={(event) => setHeadmaster({ ...headmaster, speechEn: event.target.value })} className="rounded-xl border bg-slate-50 p-3 text-sm font-normal leading-relaxed dark:border-white/10 dark:bg-slate-900" /></label>
             <button disabled={saving} className="rounded-xl bg-blue-700 px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{saving ? t('Menyimpan...', 'Saving...') : t('Simpan Sambutan', 'Save Message')}</button>
           </form>
         </AdminFormModal>

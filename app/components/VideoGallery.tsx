@@ -9,26 +9,27 @@ import { getYouTubeVideoId } from '@/lib/youtube';
 type VideoItem = {
   id: string;
   title: string;
+  title_en?: string | null;
   media_url: string;
   thumbnailUrl?: string;
 };
 
 const FEATURED_VIDEOS: VideoItem[] = [
-  { id: 'IGIRUAZDsfU', title: 'Sudah pernah dengar kisah teladan Nabi yang berjudul "8 Dirham"?', media_url: 'https://youtu.be/IGIRUAZDsfU', thumbnailUrl: 'https://i.ytimg.com/vi/IGIRUAZDsfU/maxresdefault.jpg' },
-  { id: '-2Cz46PrI_A', title: 'Episode 1 KURMA - 4 Golongan orang yang dirindukan surga', media_url: 'https://youtu.be/-2Cz46PrI_A' },
-  { id: '3qodDL0ZOLk', title: 'Pembelajaran Ber-KSE Mapel IPA kelas IX', media_url: 'https://youtu.be/3qodDL0ZOLk' },
-  { id: '3jS7Ga8sFaw', title: 'Upacara Bendera memperingati HUT Kemerdekaan ke 79 Republik Indonesia pada 17 Agustus 2024 di Kramat', media_url: 'https://youtu.be/3jS7Ga8sFaw' },
-  { id: 'xeZaLKuB4KM', title: 'MPLS Hari Pertama SMP Muhammadiyah Kembaran, 22 Juli 2024', media_url: 'https://youtu.be/xeZaLKuB4KM' },
-  { id: 'FlM_T4AXImI', title: 'Perpisahan SMP Muhammadiyah Kembaran tahun ajaran 2023-2024', media_url: 'https://youtu.be/FlM_T4AXImI' },
-  { id: 'WYBQg19s8Cg', title: 'Program P5 SMP Muhammadiyah Kembaran Tahun 2023-2024', media_url: 'https://youtu.be/WYBQg19s8Cg' },
-  { id: 'N4pLawDWr3c', title: 'Pesantren Kilat Ramadhan... Benar atau salah materi Sholat Idul Fitri -ist', media_url: 'https://youtu.be/N4pLawDWr3c' },
-  { id: 'qMp9bcRC3Gc', title: 'Apel Pagi di SMP MUHAMMADIYAH KEMBARAN oleh Kapolsek Kembaran', media_url: 'https://youtu.be/qMp9bcRC3Gc' },
+  { id: 'IGIRUAZDsfU', title: 'Sudah pernah dengar kisah teladan Nabi yang berjudul "8 Dirham"?', title_en: 'Have you heard the inspiring story of the Prophet called “8 Dirham”?', media_url: 'https://youtu.be/IGIRUAZDsfU', thumbnailUrl: 'https://i.ytimg.com/vi/IGIRUAZDsfU/maxresdefault.jpg' },
+  { id: '-2Cz46PrI_A', title: 'Episode 1 KURMA - 4 Golongan orang yang dirindukan surga', title_en: 'KURMA Episode 1: Four groups of people longed for by Paradise', media_url: 'https://youtu.be/-2Cz46PrI_A' },
+  { id: '3qodDL0ZOLk', title: 'Pembelajaran Ber-KSE Mapel IPA kelas IX', title_en: 'Social and Emotional Learning (KSE) in Grade 9 Science', media_url: 'https://youtu.be/3qodDL0ZOLk' },
+  { id: '3jS7Ga8sFaw', title: 'Upacara Bendera memperingati HUT Kemerdekaan ke 79 Republik Indonesia pada 17 Agustus 2024 di Kramat', title_en: 'Flag ceremony for Indonesia’s 79th Independence Day, August 17, 2024, in Kramat', media_url: 'https://youtu.be/3jS7Ga8sFaw' },
+  { id: 'xeZaLKuB4KM', title: 'MPLS Hari Pertama SMP Muhammadiyah Kembaran, 22 Juli 2024', title_en: 'First day of student orientation at SMP Muhammadiyah Kembaran, July 22, 2024', media_url: 'https://youtu.be/xeZaLKuB4KM' },
+  { id: 'FlM_T4AXImI', title: 'Perpisahan SMP Muhammadiyah Kembaran tahun ajaran 2023-2024', title_en: 'SMP Muhammadiyah Kembaran farewell ceremony, 2023–2024 academic year', media_url: 'https://youtu.be/FlM_T4AXImI' },
+  { id: 'WYBQg19s8Cg', title: 'Program P5 SMP Muhammadiyah Kembaran Tahun 2023-2024', title_en: 'P5 Program at SMP Muhammadiyah Kembaran, 2023–2024', media_url: 'https://youtu.be/WYBQg19s8Cg' },
+  { id: 'N4pLawDWr3c', title: 'Pesantren Kilat Ramadhan... Benar atau salah materi Sholat Idul Fitri -ist', title_en: 'Ramadan short course: Eid al-Fitr prayer lesson', media_url: 'https://youtu.be/N4pLawDWr3c' },
+  { id: 'qMp9bcRC3Gc', title: 'Apel Pagi di SMP MUHAMMADIYAH KEMBARAN oleh Kapolsek Kembaran', title_en: 'Morning assembly at SMP Muhammadiyah Kembaran with the Kembaran Police Chief', media_url: 'https://youtu.be/qMp9bcRC3Gc' },
 ];
 
 const YOUTUBE_VIDEOS_URL = 'https://www.youtube.com/@smpmuhkembaran/videos';
 
 export default function VideoGallery() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const [videos, setVideos] = useState<VideoItem[]>(FEATURED_VIDEOS);
   const [loadError, setLoadError] = useState(false);
 
@@ -36,7 +37,7 @@ export default function VideoGallery() {
     let active = true;
     supabase
       .from('school_gallery_items')
-      .select('id,title,media_url')
+      .select('*')
       .eq('media_type', 'video')
       .order('sort_order')
       .order('created_at', { ascending: false })
@@ -62,7 +63,12 @@ export default function VideoGallery() {
 
   const playableVideos = videos.flatMap((video) => {
     const videoId = getYouTubeVideoId(video.media_url);
-    return videoId ? [{ ...video, videoId }] : [];
+    if (!videoId) return [];
+    const defaultVideo = FEATURED_VIDEOS.find((item) => item.id === videoId);
+    const title = lang === 'en'
+      ? video.title_en || defaultVideo?.title_en || t('Video sekolah', 'School video')
+      : video.title;
+    return [{ ...video, title, videoId }];
   });
 
   return (

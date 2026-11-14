@@ -10,13 +10,24 @@ import AdminFormModal from '../components/AdminFormModal';
 import AdminImageField from '../components/AdminImageField';
 import AdminNavbar from '../components/navbar';
 
-type Activity = { id: string; name: string; badge: string; tag: string; description: string; image_url?: string | null; image_path?: string | null };
+type Activity = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+  badge: string;
+  tag: string;
+  tag_en?: string | null;
+  description: string;
+  description_en?: string | null;
+  image_url?: string | null;
+  image_path?: string | null;
+};
 
 export default function AdminEkstrakulikulerPage() {
   const router = useRouter();
   const { t } = useLang();
   const [items, setItems] = useState<Activity[]>([]);
-  const [form, setForm] = useState({ name: '', badge: '', tag: '', description: '' });
+  const [form, setForm] = useState({ name: '', name_en: '', badge: '', tag: '', tag_en: '', description: '', description_en: '' });
   const [file, setFile] = useState<File | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
   const [editing, setEditing] = useState<Activity | null>(null);
@@ -75,9 +86,12 @@ export default function AdminEkstrakulikulerPage() {
 
       const payload = {
         name: form.name.trim(),
+        name_en: form.name_en.trim(),
         badge: form.badge.trim().toUpperCase(),
         tag: form.tag.trim().toUpperCase(),
+        tag_en: form.tag_en.trim().toUpperCase(),
         description: form.description.trim(),
+        description_en: form.description_en.trim(),
         image_url: imageUrl,
         image_path: imagePath,
       };
@@ -89,7 +103,7 @@ export default function AdminEkstrakulikulerPage() {
       const oldImagePath = editing?.image_path || getSchoolImagePathFromUrl(editing?.image_url);
       const cleanupSucceeded = !oldImagePath || (!file && !removeImage) || await deleteSchoolImage(oldImagePath);
       formElement.reset();
-      setForm({ name: '', badge: '', tag: '', description: '' });
+      setForm({ name: '', name_en: '', badge: '', tag: '', tag_en: '', description: '', description_en: '' });
       setFile(null);
       setRemoveImage(false);
       setEditing(null);
@@ -140,7 +154,7 @@ export default function AdminEkstrakulikulerPage() {
   const openAddForm = () => {
     setMessage('');
     setEditing(null);
-    setForm({ name: '', badge: '', tag: '', description: '' });
+    setForm({ name: '', name_en: '', badge: '', tag: '', tag_en: '', description: '', description_en: '' });
     setFile(null);
     setRemoveImage(false);
     setFormOpen(true);
@@ -149,7 +163,15 @@ export default function AdminEkstrakulikulerPage() {
   const openEditForm = (item: Activity) => {
     setMessage('');
     setEditing(item);
-    setForm({ name: item.name, badge: item.badge, tag: item.tag, description: item.description });
+    setForm({
+      name: item.name,
+      name_en: item.name_en || '',
+      badge: item.badge,
+      tag: item.tag,
+      tag_en: item.tag_en || '',
+      description: item.description,
+      description_en: item.description_en || '',
+    });
     setFile(null);
     setRemoveImage(false);
     setFormOpen(true);
@@ -205,12 +227,15 @@ export default function AdminEkstrakulikulerPage() {
         <AdminFormModal open={formOpen} title={editing ? t('Edit Ekstrakulikuler', 'Edit Extracurricular') : t('Tambah Ekstrakulikuler', 'Add Extracurricular')} onClose={() => setFormOpen(false)}>
           <form onSubmit={save} className="space-y-4">
             {message && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{message}</p>}
-            <input required placeholder={t('Nama kegiatan', 'Activity name')} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+            <input required placeholder={t('Nama kegiatan (Bahasa Indonesia)', 'Activity name (Indonesian)')} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+            <input required placeholder={t('Nama kegiatan (Bahasa Inggris)', 'Activity name (English)')} value={form.name_en} onChange={(event) => setForm({ ...form, name_en: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
             <div className="grid grid-cols-2 gap-3">
               <input required maxLength={3} placeholder={t('Badge', 'Badge')} value={form.badge} onChange={(event) => setForm({ ...form, badge: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm uppercase dark:border-white/10 dark:bg-slate-900" />
-              <input required placeholder={t('Kategori', 'Category')} value={form.tag} onChange={(event) => setForm({ ...form, tag: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm uppercase dark:border-white/10 dark:bg-slate-900" />
+              <input required placeholder={t('Kategori (Bahasa Indonesia)', 'Category (Indonesian)')} value={form.tag} onChange={(event) => setForm({ ...form, tag: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm uppercase dark:border-white/10 dark:bg-slate-900" />
             </div>
-            <textarea required rows={5} placeholder={t('Deskripsi kegiatan', 'Activity description')} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900" />
+            <input required placeholder={t('Kategori (Bahasa Inggris)', 'Category (English)')} value={form.tag_en} onChange={(event) => setForm({ ...form, tag_en: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm uppercase dark:border-white/10 dark:bg-slate-900" />
+            <textarea required rows={5} placeholder={t('Deskripsi kegiatan (Bahasa Indonesia)', 'Activity description (Indonesian)')} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900" />
+            <textarea required rows={5} placeholder={t('Deskripsi kegiatan (Bahasa Inggris)', 'Activity description (English)')} value={form.description_en} onChange={(event) => setForm({ ...form, description_en: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900" />
             <AdminImageField
               label={t('Foto kegiatan', 'Activity image')}
               imageUrl={editing?.image_url}

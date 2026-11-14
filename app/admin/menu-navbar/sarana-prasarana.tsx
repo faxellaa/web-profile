@@ -9,8 +9,16 @@ import AdminFormModal from '../components/AdminFormModal';
 import AdminImageField from '../components/AdminImageField';
 import AdminNavbar from '../components/navbar';
 
-type Facility = { id: string; name: string; description: string; image_url?: string; image_path?: string };
-const emptyForm = { name: '', description: '' };
+type Facility = {
+  id: string;
+  name: string;
+  name_en?: string | null;
+  description: string;
+  description_en?: string | null;
+  image_url?: string;
+  image_path?: string;
+};
+const emptyForm = { name: '', name_en: '', description: '', description_en: '' };
 
 export default function AdminSaranaPage() {
   const router = useRouter();
@@ -77,7 +85,9 @@ export default function AdminSaranaPage() {
 
       const payload = {
         name: form.name.trim(),
+        name_en: form.name_en.trim(),
         description: form.description.trim(),
+        description_en: form.description_en.trim(),
         image_url: imageUrl,
         image_path: imagePath,
       };
@@ -170,7 +180,7 @@ export default function AdminSaranaPage() {
                   <p className="mt-2 text-xs leading-relaxed text-slate-500 dark:text-slate-400">{item.description}</p>
                 </div>
                 <div className="flex self-start gap-1">
-                  <button type="button" onClick={() => { setMessage(''); setEditing(item); setForm({ name: item.name, description: item.description }); setFile(null); setRemoveImage(false); setFormOpen(true); }} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300 dark:hover:bg-sky-400/20">{t('Edit', 'Edit')}</button>
+                  <button type="button" onClick={() => { setMessage(''); setEditing(item); setForm({ name: item.name, name_en: item.name_en || '', description: item.description, description_en: item.description_en || '' }); setFile(null); setRemoveImage(false); setFormOpen(true); }} className="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-700 transition-colors hover:bg-blue-100 dark:border-sky-400/30 dark:bg-sky-400/10 dark:text-sky-300 dark:hover:bg-sky-400/20">{t('Edit', 'Edit')}</button>
                   <button type="button" onClick={() => void remove(item)} className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-600 transition-colors hover:bg-red-100 dark:border-red-400/30 dark:bg-red-400/10 dark:text-red-300 dark:hover:bg-red-400/20">{t('Hapus', 'Delete')}</button>
                 </div>
               </article>
@@ -182,8 +192,10 @@ export default function AdminSaranaPage() {
         <AdminFormModal open={formOpen} title={editing ? t('Edit Sarana', 'Edit Facility') : t('Tambah Sarana', 'Add Facility')} onClose={() => setFormOpen(false)}>
           <form onSubmit={save} className="space-y-4">
             {message && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{message}</p>}
-            <input required placeholder={t('Nama fasilitas', 'Facility name')} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
-            <textarea required rows={5} placeholder={t('Deskripsi fasilitas', 'Facility description')} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900" />
+            <input required placeholder={t('Nama fasilitas (Bahasa Indonesia)', 'Facility name (Indonesian)')} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+            <input required placeholder={t('Nama fasilitas (Bahasa Inggris)', 'Facility name (English)')} value={form.name_en} onChange={(event) => setForm({ ...form, name_en: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900" />
+            <textarea required rows={5} placeholder={t('Deskripsi fasilitas (Bahasa Indonesia)', 'Facility description (Indonesian)')} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900" />
+            <textarea required rows={5} placeholder={t('Deskripsi fasilitas (Bahasa Inggris)', 'Facility description (English)')} value={form.description_en} onChange={(event) => setForm({ ...form, description_en: event.target.value })} className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900" />
             <AdminImageField
               label={t('Foto sarana', 'Facility image')}
               imageUrl={editing?.image_url}

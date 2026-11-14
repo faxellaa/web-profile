@@ -5,9 +5,8 @@ import { ChevronRight, FileText, UserRoundPlus } from 'lucide-react';
 import Link from 'next/link';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_EXTRACURRICULARS, DEFAULT_TEACHERS, HEADMASTER_NAME, mergeDefaultFacilities, orderExtracurriculars, SCHOOL_MISSIONS, SCHOOL_MISSIONS_EN, SCHOOL_VISION, SCHOOL_VISION_CONTEXT, SCHOOL_VISION_CONTEXT_EN, SCHOOL_VISION_EN, type SchoolTeacher } from '@/lib/school-content';
-import { PRESTASI_INFO } from '@/lib/prestasi-data';
-import { WA_ADMIN_URL } from '@/lib/site-links';
+import { DEFAULT_EXTRACURRICULARS, DEFAULT_TEACHERS, HEADMASTER_NAME, findDefaultFacilityTranslation, mergeDefaultFacilities, orderExtracurriculars, SCHOOL_MISSIONS, SCHOOL_MISSIONS_EN, SCHOOL_VISION, SCHOOL_VISION_CONTEXT, SCHOOL_VISION_CONTEXT_EN, SCHOOL_VISION_EN, translateTeacherRole, type SchoolTeacher } from '@/lib/school-content';
+import { findPrestasiInfoByImageUrl, PRESTASI_INFO } from '@/lib/prestasi-data';
 import AchievementCard, { type AchievementCardProps } from './components/AchievementCard';
 
 type VisitorAnalytics = {
@@ -23,24 +22,33 @@ type WeeklyVisitorStats = {
 type HomeArticle = {
   id?: string;
   title: string;
+  title_en?: string | null;
   category: string;
+  category_en?: string | null;
   description: string;
+  description_en?: string | null;
   image_url?: string | null;
   date_label?: string | null;
+  date_label_en?: string | null;
 };
 
 type HomeActivity = {
   id?: string;
   name: string;
+  name_en?: string | null;
   tag?: string;
+  tag_en?: string | null;
   badge?: string;
   description: string;
+  description_en?: string | null;
   image_url?: string | null;
 };
 
 type HomeFacility = {
   name: string;
+  name_en?: string | null;
   description: string;
+  description_en?: string | null;
   image_url?: string;
 };
 
@@ -195,6 +203,7 @@ export default function HomePage() {
   const [dbStats, setDbStats] = useState({
     headmaster_name: HEADMASTER_NAME,
     speech: '',
+    speech_en: '',
     photo_url: '/img/guru/Isti%20KS.jpg',
   });
   const [schoolStatsLoaded, setSchoolStatsLoaded] = useState(false);
@@ -206,8 +215,8 @@ export default function HomePage() {
   const [weeklyVisitorStats, setWeeklyVisitorStats] = useState<WeeklyVisitorStats>({ daily: {}, unique_visitors: 0 });
   const [hasVisitorData, setHasVisitorData] = useState(false);
   const [hasWeeklyVisitorData, setHasWeeklyVisitorData] = useState(false);
-  const speechText = lang === 'en' && (!dbStats.speech || dbStats.speech.includes('Selamat pagi dan salam sejahtera'))
-    ? HEADMASTER_SPEECH_EN
+  const speechText = lang === 'en'
+    ? dbStats.speech_en || HEADMASTER_SPEECH_EN
     : dbStats.speech || 'Assalamu’alaikum Warahmatullahi Wabarakatuh. Selamat datang di website resmi SMP Muhammadiyah Kembaran. Mari bersama mendukung pendidikan yang berkarakter, berprestasi, dan berkemajuan. Wassalamu’alaikum Warahmatullahi Wabarakatuh.';
 
   useEffect(() => {
@@ -248,6 +257,7 @@ export default function HomePage() {
         setDbStats({
           headmaster_name: HEADMASTER_NAME,
           speech: data.headmaster_speech || '',
+          speech_en: data.headmaster_speech_en || '',
           photo_url: data.headmaster_photo_url || '/img/guru/Isti%20KS.jpg',
         });
       }
@@ -378,14 +388,27 @@ export default function HomePage() {
     detail: info.detail ? t(info.detail.id, info.detail.en) : undefined,
   }));
   const displayAchievements: AchievementCardProps[] = dbAchievements.length > 0
-    ? dbAchievements.map((achievement) => ({
+    ? dbAchievements.map((achievement) => {
+      const info = findPrestasiInfoByImageUrl(achievement.image_url);
+      const title = lang === 'en'
+        ? achievement.title_en || info?.title.en || t('Terjemahan judul belum tersedia.', 'English title not available yet.')
+        : achievement.title;
+
+      return {
         imageUrl: achievement.image_url ?? null,
-        imageAlt: achievement.title,
+        imageAlt: title,
         badge: t('Prestasi Siswa', 'Student Achievement'),
-        title: achievement.title,
-        event: achievement.description,
-        participant: achievement.date_label ?? undefined,
-      }))
+        title,
+        event: lang === 'en'
+          ? achievement.description_en
+            || [info?.event.en, info?.detail?.en].filter(Boolean).join(' ')
+            || t('Terjemahan deskripsi belum tersedia.', 'English description not available yet.')
+          : achievement.description,
+        participant: info
+          ? `${info.name.en}${info.grade ? ` · ${t(`Kelas ${info.grade}`, `Grade ${info.grade}`)}` : ''}`
+          : (lang === 'en' ? achievement.date_label_en : achievement.date_label) ?? undefined,
+      };
+      })
     : staticAchievements;
 
   const togglePanel = (panel: HomePanelKey) => {
@@ -517,7 +540,7 @@ export default function HomePage() {
                 {teacher.photo_url ? <img src={teacher.photo_url} alt={`${t('Foto','Photo of')} ${teacher.name}`} className="h-full w-full object-cover object-top" /> : <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-200/70 via-white to-violet-200/60 text-6xl font-black text-slate-500 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-400">{teacher.name.charAt(0)}</div>}
                 <div className="absolute inset-x-0 bottom-0 bg-white/85 p-3 text-slate-950 backdrop-blur-md dark:bg-slate-950/85 dark:text-white">
                   <h3 className="text-sm font-black leading-tight">{teacher.name}</h3>
-                  <p className="mt-0.5 text-xs text-slate-600 dark:text-white/80">{teacher.role}</p>
+                  <p className="mt-0.5 text-xs text-slate-600 dark:text-white/80">{lang === 'en' ? translateTeacherRole(teacher.role) : teacher.role}</p>
                 </div>
               </div>
             </Link>
@@ -534,17 +557,23 @@ export default function HomePage() {
       <section id="sarana" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
         <SectionHead label={t('Fasilitas Sekolah','School Facilities')} title={t('Sarana & Prasarana','Facilities')} desc={t('Ruang belajar dan sarana penunjang kegiatan siswa.','Learning spaces and facilities that support student activities.')} />
         <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {displayFacilities.slice(0, 5).map((facility, idx) => (
+          {displayFacilities.slice(0, 5).map((facility, idx) => {
+            const defaultFacility = findDefaultFacilityTranslation(facility.name);
+            const name = lang === 'en' ? facility.name_en || defaultFacility?.name_en || t('Sarana sekolah', 'School facility') : facility.name;
+            const description = lang === 'en' ? facility.description_en || defaultFacility?.description_en || t('Terjemahan deskripsi belum tersedia.', 'English description not available yet.') : facility.description;
+
+            return (
             <div key={idx} className={`group min-w-72 snap-start overflow-hidden sm:min-w-80 ${glass} ${glassHover}`}>
               <div className="h-48 w-full overflow-hidden bg-slate-200 dark:bg-slate-900">
-                <img src={facility.image_url || 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=80'} alt={facility.name} className="h-full w-full object-cover" />
+                <img src={facility.image_url || 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&auto=format&fit=crop&q=80'} alt={name} className="h-full w-full object-cover" />
               </div>
               <div className="p-5">
-                <h3 className="text-sm font-black text-slate-950 dark:text-white">{facility.name}</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{facility.description}</p>
+                <h3 className="text-sm font-black text-slate-950 dark:text-white">{name}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{description}</p>
               </div>
             </div>
-          ))}
+            );
+          })}
           <HomeSeeMoreCard
             href="/profil/sarana-prasarana"
             label={t('Lihat Selengkapnya', 'See More')}
@@ -557,26 +586,32 @@ export default function HomePage() {
       <section id="ekskul" data-reveal className="relative z-10 mx-auto max-w-6xl scroll-mt-24 px-4 pt-24 sm:pt-32">
         <SectionHead label={t('Pengembangan Bakat','Talent Development')} title={t('Ekstrakurikuler','Extracurriculars')} desc={t('Ruang pembinaan minat, kreativitas, dan kepemimpinan siswa.','A space to nurture students’ interests, creativity, and leadership.')} />
         <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-4 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {displayEkskuls.slice(0, 5).map((ekskul) => (
+          {displayEkskuls.slice(0, 5).map((ekskul) => {
+            const name = lang === 'en' ? ekskul.name_en || t('Kegiatan siswa', 'Student activity') : ekskul.name;
+            const tag = lang === 'en' ? ekskul.tag_en || 'ACTIVITY' : ekskul.tag;
+            const description = lang === 'en' ? ekskul.description_en || t('Terjemahan deskripsi belum tersedia.', 'English description not available yet.') : ekskul.description;
+
+            return (
             <div key={ekskul.id || ekskul.name} className={`group flex min-w-72 snap-start flex-col overflow-hidden sm:min-w-80 ${glass} ${glassHover}`}>
               <div className="relative h-44 w-full overflow-hidden bg-slate-200 dark:bg-slate-900">
                 {ekskul.image_url ? (
-                  <img src={ekskul.image_url} alt={ekskul.name} className="h-full w-full object-cover" />
+                  <img src={ekskul.image_url} alt={name} className="h-full w-full object-cover" />
                 ) : (
                   <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-100 via-white to-violet-100 text-sky-700 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-sky-300">
                     <span className="flex h-20 w-20 items-center justify-center border border-current/20 text-2xl font-black">{ekskul.badge || '☆'}</span>
                   </div>
                 )}
                 <span className="absolute left-3 top-3 border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-800 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200">
-                  {ekskul.tag || ekskul.badge || 'KEGIATAN'}
+                  {tag || ekskul.badge || 'ACTIVITY'}
                 </span>
               </div>
               <div className="p-5">
-                <h3 className="text-sm font-black text-slate-950 dark:text-white">{ekskul.name}</h3>
-                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{ekskul.description}</p>
+                <h3 className="text-sm font-black text-slate-950 dark:text-white">{name}</h3>
+                <p className="mt-1.5 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{description}</p>
               </div>
             </div>
-          ))}
+            );
+          })}
           <HomeSeeMoreCard
             href="/akademik/ekstrakurikuler"
             label={t('Lihat Selengkapnya', 'See More')}
@@ -724,27 +759,6 @@ export default function HomePage() {
           </article>
         </div>
       </section>
-
-      {/* FLOATING WHATSAPP BUTTON */}
-      <aside aria-label={t('Bantuan WhatsApp','WhatsApp Help')} className="group fixed bottom-6 right-6 z-9999">
-        <a
-          href={WA_ADMIN_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex min-h-12 items-center gap-2.5 rounded-full border border-white/40 bg-emerald-500 py-3 pl-4 pr-5 text-white shadow-2xl shadow-emerald-700/40 backdrop-blur-md transition-colors duration-200 hover:bg-emerald-600"
-        >
-          <div className="relative flex items-center justify-center">
-            <svg className="w-6 h-6 fill-current" viewBox="0 0 24 24">
-              <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/>
-            </svg>
-            <span aria-hidden="true" className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-300" />
-          </div>
-          <div className="flex flex-col text-left">
-            <span className="text-[10px] uppercase font-semibold text-emerald-100 tracking-wider">{t('Pusat Bantuan','Help Center')}</span>
-            <span className="text-xs font-bold leading-none">{t('Chat Admin WA','Chat Admin on WA')}</span>
-          </div>
-        </a>
-      </aside>
 
     </div>
   );

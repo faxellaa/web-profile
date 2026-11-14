@@ -144,7 +144,7 @@ export default function Footer() {
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
           <p>© {new Date().getFullYear()} SMP Muhammadiyah Kembaran. {t('Hak Cipta Dilindungi.', 'All rights reserved.')}</p>
           <div className="flex items-center gap-4 text-slate-500">
-            <span className="text-blue-400 font-medium">Banyumas, Jateng</span>
+            <span className="text-blue-400 font-medium">{t('Banyumas, Jateng', 'Banyumas, Central Java')}</span>
           </div>
         </div>
       </div>

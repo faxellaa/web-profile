@@ -13,8 +13,12 @@ import AdminNavbar from '../components/navbar';
 type Achievement = {
   id: string;
   title: string;
+  title_en?: string | null;
   category: string;
+  category_en?: string | null;
   description: string;
+  description_en?: string | null;
+  date_label_en?: string | null;
   image_url?: string;
   image_path?: string | null;
   created_at?: string;
@@ -26,7 +30,7 @@ export default function AdminPrestasiPage() {
   const router = useRouter();
   const { t } = useLang();
   const [items, setItems] = useState<Achievement[]>([]);
-  const [form, setForm] = useState({ title: '', description: '' });
+  const [form, setForm] = useState({ title: '', title_en: '', description: '', description_en: '' });
   const [file, setFile] = useState<File | null>(null);
   const [editing, setEditing] = useState<Achievement | null>(null);
   const [removeImage, setRemoveImage] = useState(false);
@@ -92,20 +96,23 @@ export default function AdminPrestasiPage() {
       const payload = {
         ...form,
         category: ACHIEVEMENT_CATEGORY,
+        category_en: 'Student Achievement',
         image_url: imageUrl,
         image_path: imagePath,
       };
+      const createdAt = new Date();
       const result = editing
         ? await supabase.from('articles').update(payload).eq('id', editing.id)
         : await supabase.from('articles').insert({
           ...payload,
-          date_label: new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+          date_label: createdAt.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
+          date_label_en: createdAt.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
         });
       if (result.error) throw result.error;
 
       const oldImagePath = editing?.image_path || getSchoolImagePathFromUrl(editing?.image_url);
       const cleanupSucceeded = !oldImagePath || (!file && !removeImage) || await deleteSchoolImage(oldImagePath);
-      setForm({ title: '', description: '' });
+      setForm({ title: '', title_en: '', description: '', description_en: '' });
       setFile(null);
       setEditing(null);
       setRemoveImage(false);
@@ -154,7 +161,7 @@ export default function AdminPrestasiPage() {
   const openAddForm = () => {
     setMessage('');
     setEditing(null);
-    setForm({ title: '', description: '' });
+    setForm({ title: '', title_en: '', description: '', description_en: '' });
     setFile(null);
     setRemoveImage(false);
     setFormOpen(true);
@@ -163,7 +170,12 @@ export default function AdminPrestasiPage() {
   const openEditForm = (item: Achievement) => {
     setMessage('');
     setEditing(item);
-    setForm({ title: item.title, description: item.description });
+    setForm({
+      title: item.title,
+      title_en: item.title_en || '',
+      description: item.description,
+      description_en: item.description_en || '',
+    });
     setFile(null);
     setRemoveImage(false);
     setFormOpen(true);
@@ -222,17 +234,32 @@ export default function AdminPrestasiPage() {
             {message && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300">{message}</p>}
             <input
               required
-              placeholder={t('Judul prestasi', 'Achievement title')}
+              placeholder={t('Judul prestasi (Bahasa Indonesia)', 'Achievement title (Indonesian)')}
               value={form.title}
               onChange={(event) => setForm({ ...form, title: event.target.value })}
+              className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900"
+            />
+            <input
+              required
+              placeholder={t('Judul prestasi (Bahasa Inggris)', 'Achievement title (English)')}
+              value={form.title_en}
+              onChange={(event) => setForm({ ...form, title_en: event.target.value })}
               className="w-full rounded-xl border bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-900"
             />
             <textarea
               required
               rows={5}
-              placeholder={t('Deskripsi prestasi', 'Achievement description')}
+              placeholder={t('Deskripsi prestasi (Bahasa Indonesia)', 'Achievement description (Indonesian)')}
               value={form.description}
               onChange={(event) => setForm({ ...form, description: event.target.value })}
+              className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900"
+            />
+            <textarea
+              required
+              rows={5}
+              placeholder={t('Deskripsi prestasi (Bahasa Inggris)', 'Achievement description (English)')}
+              value={form.description_en}
+              onChange={(event) => setForm({ ...form, description_en: event.target.value })}
               className="w-full rounded-xl border bg-slate-50 p-3 text-sm leading-relaxed dark:border-white/10 dark:bg-slate-900"
             />
             <AdminImageField

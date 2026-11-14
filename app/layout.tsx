@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import WhatsAppFloat from './components/WhatsAppFloat';
 import { LanguageProvider } from '@/lib/i18n';
 import PageViewTracker from './components/PageViewTracker';
 
@@ -26,6 +27,7 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <Footer />
+          <WhatsAppFloat />
         </LanguageProvider>
       </body>
     </html>

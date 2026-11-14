@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, FileDown } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
+import { exportAdminReportToPdf, type AdminReport } from '@/lib/admin-report-pdf';
 import AdminNavbar from '../components/navbar';
 import AdminFormModal from '../components/AdminFormModal';
 
@@ -24,6 +25,7 @@ type Application = {
 };
 
 const PAGE_SIZE = 5;
+const EXPORT_BATCH_SIZE = 500;
 const statuses = ['Baru', 'Diverifikasi', 'Diterima'] as const;
 type StatusFilter = 'Semua' | Application['status'];
 
@@ -54,6 +56,7 @@ export default function AdminSpmbPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [busyId, setBusyId] = useState('');
   const [busyDocumentPath, setBusyDocumentPath] = useState('');
+  const [exporting, setExporting] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState<Application | null>(null);
 
   useEffect(() => {
@@ -194,25 +197,108 @@ export default function AdminSpmbPage() {
     }
   };
 
+  const exportReport = async () => {
+    setExporting(true);
+    setErrorMessage('');
+
+    try {
+      const allApplications: Omit<Application, 'id'>[] = [];
+      for (let offset = 0; ; offset += EXPORT_BATCH_SIZE) {
+        const { data, error } = await supabase
+          .from('spmb_applications')
+          .select('full_name,nickname,school_origin,birth_place,birth_date,nik,guardian_whatsapp,snsps_document_path,graduation_proof_path,status,submitted_at')
+          .order('submitted_at', { ascending: false })
+          .range(offset, offset + EXPORT_BATCH_SIZE - 1);
+
+        if (error) {
+          console.error('Failed to export SPMB applications:', error);
+          setErrorMessage(t('Laporan pendaftar SPMB gagal dibuat. Coba lagi.', 'The SPMB applications report could not be created. Please try again.'));
+          return;
+        }
+
+        const batch = data || [];
+        allApplications.push(...batch);
+        if (batch.length < EXPORT_BATCH_SIZE) break;
+      }
+
+      const report: AdminReport = {
+        title: 'Laporan Data Pendaftar SPMB',
+        fileName: `pendaftar-spmb-${new Date().toISOString().slice(0, 10)}`,
+        period: `Periode: Seluruh data / ${new Date().toLocaleDateString('id-ID', { dateStyle: 'long' })}`,
+        columns: [
+          { header: 'No.', width: 8 },
+          { header: 'Tanggal daftar', width: 21 },
+          { header: 'Nama lengkap', width: 28 },
+          { header: 'Nama panggilan', width: 20 },
+          { header: 'Asal sekolah', width: 26 },
+          { header: 'Tempat lahir', width: 18 },
+          { header: 'Tanggal lahir', width: 18 },
+          { header: 'NIK', width: 22 },
+          { header: 'WhatsApp orang tua/wali', width: 24 },
+          { header: 'Status pendaftaran', width: 20 },
+          { header: 'Berkas SNSP', width: 18 },
+          { header: 'Bukti kelulusan', width: 20 },
+        ],
+        rows: allApplications.map((application, index) => {
+          const birthDate = new Date(`${application.birth_date}T00:00:00`);
+          return [
+            String(index + 1),
+            new Date(application.submitted_at).toLocaleString('id-ID'),
+            application.full_name,
+            application.nickname,
+            application.school_origin || '—',
+            application.birth_place || '—',
+            Number.isNaN(birthDate.getTime()) ? application.birth_date : birthDate.toLocaleDateString('id-ID'),
+            application.nik,
+            application.guardian_whatsapp ? `+${application.guardian_whatsapp}` : '—',
+            application.status,
+            application.snsps_document_path ? 'Tersedia' : 'Tidak tersedia',
+            application.graduation_proof_path ? 'Tersedia' : 'Tidak tersedia',
+          ];
+        }),
+      };
+
+      await exportAdminReportToPdf(report);
+    } catch (error) {
+      console.error('Unexpected error while creating the SPMB report:', error);
+      setErrorMessage(t('Terjadi kesalahan saat membuat laporan pendaftar SPMB.', 'An error occurred while creating the SPMB applications report.'));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   return (
     <div className="min-h-screen bg-slate-50 p-3 text-slate-800 dark:bg-slate-950 dark:text-slate-100 sm:p-6">
       <div className="mx-auto max-w-6xl space-y-7 pt-20 sm:pt-24">
         <AdminNavbar />
-        <header className="border-b border-slate-200/70 pb-5 dark:border-white/10">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-sky-400">
-            {t('Layanan Publik', 'Public Services')}
-          </p>
-          <h1 className="mt-2 text-2xl font-black text-blue-950 dark:text-white sm:text-3xl">
-            {t('Pendaftar SPMB', 'SPMB Applications')}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
-            {t('Periksa data dan berkas, ubah status proses, lalu gunakan tombol WhatsApp untuk menyiapkan kabar kepada orang tua/wali.', 'Review applicant details and documents, update the status, then use WhatsApp to prepare an update for the parent/guardian.')}
-          </p>
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
-            {t('Baru: menunggu pemeriksaan. Diverifikasi: data dan berkas sudah dicek. Diterima: lolos seleksi. Pesan WhatsApp perlu dikirim manual oleh admin.', 'New: awaiting review. Verified: details and documents checked. Accepted: passed selection. WhatsApp messages must be sent manually by an admin.')}
-          </p>
+        <header className="flex flex-col gap-4 border-b border-slate-200/70 pb-5 dark:border-white/10 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-600 dark:text-sky-400">
+              {t('Layanan Publik', 'Public Services')}
+            </p>
+            <h1 className="mt-2 text-2xl font-black text-blue-950 dark:text-white sm:text-3xl">
+              {t('Pendaftar SPMB', 'SPMB Applications')}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 dark:text-slate-400">
+              {t('Periksa data dan berkas, ubah status proses, lalu gunakan tombol WhatsApp untuk menyiapkan kabar kepada orang tua/wali.', 'Review applicant details and documents, update the status, then use WhatsApp to prepare an update for the parent/guardian.')}
+            </p>
+            <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-500 dark:text-slate-400">
+              {t('Baru: menunggu pemeriksaan. Diverifikasi: data dan berkas sudah dicek. Diterima: lolos seleksi. Pesan WhatsApp perlu dikirim manual oleh admin.', 'New: awaiting review. Verified: details and documents checked. Accepted: passed selection. WhatsApp messages must be sent manually by an admin.')}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            <button
+              type="button"
+              disabled={exporting}
+              onClick={() => void exportReport()}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-700 px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-blue-800 disabled:cursor-wait disabled:opacity-60"
+            >
+              <FileDown aria-hidden="true" className="h-4 w-4" />
+              {exporting ? t('Menyiapkan PDF…', 'Preparing PDF…') : t('Ekspor PDF', 'Export PDF')}
+            </button>
+          </div>
         </header>
 
         {errorMessage && (

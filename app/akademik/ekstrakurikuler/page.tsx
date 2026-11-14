@@ -9,14 +9,17 @@ import { DEFAULT_EXTRACURRICULARS, orderExtracurriculars } from '@/lib/school-co
 type Extracurricular = {
   id: string;
   name: string;
+  name_en?: string | null;
   badge: string | null;
   tag: string | null;
+  tag_en?: string | null;
   description: string;
+  description_en?: string | null;
   image_url: string | null;
 };
 
 export default function ExtracurricularsPage() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const [activities, setActivities] = useState<Extracurricular[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -82,33 +85,48 @@ export default function ExtracurricularsPage() {
           </p>
         ) : (
           <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {activities.map((activity) => (
-              <article
-                key={activity.id}
-                className="group overflow-hidden border border-white/70 bg-white/45 shadow-[0_12px_36px_-26px_rgba(15,23,42,0.45)] backdrop-blur-2xl transition-colors duration-300 hover:bg-white/70 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.09]"
-              >
-                <div className="relative aspect-[16/10] overflow-hidden bg-slate-200 dark:bg-slate-900">
-                  {activity.image_url ? (
-                    <img src={activity.image_url} alt={activity.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-100 via-white to-violet-100 text-sky-700 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-sky-300">
-                      <span className="flex h-20 w-20 items-center justify-center border border-current/20 text-2xl font-black">
-                        {activity.badge || <Sparkles aria-hidden="true" className="h-8 w-8" />}
+            {activities.map((activity) => {
+              const defaultActivity = DEFAULT_EXTRACURRICULARS.find(
+                (item) => item.name.toLowerCase() === activity.name.toLowerCase(),
+              );
+              const name = lang === 'en'
+                ? activity.name_en || defaultActivity?.name_en || 'Student activity'
+                : activity.name;
+              const tag = lang === 'en'
+                ? activity.tag_en || defaultActivity?.tag_en || 'ACTIVITY'
+                : activity.tag;
+              const description = lang === 'en'
+                ? activity.description_en || defaultActivity?.description_en || 'English translation is not available yet.'
+                : activity.description;
+
+              return (
+                <article
+                  key={activity.id}
+                  className="group overflow-hidden border border-white/70 bg-white/45 shadow-[0_12px_36px_-26px_rgba(15,23,42,0.45)] backdrop-blur-2xl transition-colors duration-300 hover:bg-white/70 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.09]"
+                >
+                  <div className="relative aspect-[16/10] overflow-hidden bg-slate-200 dark:bg-slate-900">
+                    {activity.image_url ? (
+                      <img src={activity.image_url} alt={name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-100 via-white to-violet-100 text-sky-700 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-sky-300">
+                        <span className="flex h-20 w-20 items-center justify-center border border-current/20 text-2xl font-black">
+                          {activity.badge || <Sparkles aria-hidden="true" className="h-8 w-8" />}
+                        </span>
+                      </div>
+                    )}
+                    {tag && (
+                      <span className="absolute left-3 top-3 border border-white/70 bg-white/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-800 backdrop-blur dark:border-white/10 dark:bg-slate-950/85 dark:text-slate-200">
+                        {tag}
                       </span>
-                    </div>
-                  )}
-                  {activity.tag && (
-                    <span className="absolute left-3 top-3 border border-white/70 bg-white/85 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-800 backdrop-blur dark:border-white/10 dark:bg-slate-950/85 dark:text-slate-200">
-                      {activity.tag}
-                    </span>
-                  )}
-                </div>
-                <div className="p-5 sm:p-6">
-                  <h2 className="text-lg font-black text-slate-950 dark:text-white">{activity.name}</h2>
-                  <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">{activity.description}</p>
-                </div>
-              </article>
-            ))}
+                    )}
+                  </div>
+                  <div className="p-5 sm:p-6">
+                    <h2 className="text-lg font-black text-slate-950 dark:text-white">{name}</h2>
+                    <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">{description}</p>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         )}
       </main>

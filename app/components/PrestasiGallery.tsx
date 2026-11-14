@@ -3,16 +3,19 @@
 import { useEffect, useState } from 'react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import type { PrestasiInfo } from '@/lib/prestasi-data';
+import { findPrestasiInfoByImageUrl, type PrestasiInfo } from '@/lib/prestasi-data';
 import AchievementCard from './AchievementCard';
 
 type PrestasiPhoto = { src: string; info: PrestasiInfo | null };
 type ManagedAchievement = {
   id: string;
   title: string;
+  title_en: string | null;
   description: string;
+  description_en: string | null;
   image_url: string | null;
   date_label: string | null;
+  date_label_en: string | null;
 };
 
 type GalleryItem =
@@ -33,7 +36,7 @@ export default function PrestasiGallery({ photos }: { photos: PrestasiPhoto[] })
     const loadAchievements = async () => {
       const { data, error } = await supabase
         .from('articles')
-        .select('id,title,description,image_url,date_label')
+        .select('*')
         .eq('category', 'Prestasi Siswa')
         .order('created_at', { ascending: false });
 
@@ -94,30 +97,49 @@ export default function PrestasiGallery({ photos }: { photos: PrestasiPhoto[] })
       {loadError && <p role="status" className="mt-10 text-sm text-amber-700 dark:text-amber-300">{t('Sebagian prestasi terbaru gagal dimuat.', 'Some recent achievements could not be loaded.')}</p>}
 
       <ul className="mx-auto mt-10 grid max-w-6xl grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {items.slice(0, visible).map((item) => item.type === 'photo' ? (
-          <li key={item.key} className="min-w-0">
-            <AchievementCard
-              imageUrl={item.photo.src}
-              imageAlt={item.photo.info ? `${pick(item.photo.info.title)} - ${pick(item.photo.info.name)}` : ''}
-              badge={item.photo.info ? pick(item.photo.info.badge) : t('Prestasi Siswa', 'Student Achievement')}
-              title={item.photo.info ? pick(item.photo.info.title) : t('Prestasi Siswa', 'Student Achievement')}
-              event={item.photo.info ? pick(item.photo.info.event) : t('Informasi kejuaraan belum tersedia.', 'Championship details are not available yet.')}
-              participant={item.photo.info ? `${pick(item.photo.info.name)}${item.photo.info.grade ? ` · ${t(`Kelas ${item.photo.info.grade}`, `Grade ${item.photo.info.grade}`)}` : ''}` : undefined}
-              detail={item.photo.info?.detail ? pick(item.photo.info.detail) : undefined}
-            />
-          </li>
-        ) : (
-          <li key={item.key} className="min-w-0">
-            <AchievementCard
-              imageUrl={item.achievement.image_url}
-              imageAlt={item.achievement.title}
-              badge={t('Prestasi Siswa', 'Student Achievement')}
-              title={item.achievement.title}
-              event={item.achievement.description}
-              participant={item.achievement.date_label ?? undefined}
-            />
-          </li>
-        ))}
+        {items.slice(0, visible).map((item) => {
+          if (item.type === 'photo') {
+            return (
+              <li key={item.key} className="min-w-0">
+                <AchievementCard
+                  imageUrl={item.photo.src}
+                  imageAlt={item.photo.info ? `${pick(item.photo.info.title)} - ${pick(item.photo.info.name)}` : ''}
+                  badge={item.photo.info ? pick(item.photo.info.badge) : t('Prestasi Siswa', 'Student Achievement')}
+                  title={item.photo.info ? pick(item.photo.info.title) : t('Prestasi Siswa', 'Student Achievement')}
+                  event={item.photo.info ? pick(item.photo.info.event) : t('Informasi kejuaraan belum tersedia.', 'Championship details are not available yet.')}
+                  participant={item.photo.info ? `${pick(item.photo.info.name)}${item.photo.info.grade ? ` · ${t(`Kelas ${item.photo.info.grade}`, `Grade ${item.photo.info.grade}`)}` : ''}` : undefined}
+                  detail={item.photo.info?.detail ? pick(item.photo.info.detail) : undefined}
+                />
+              </li>
+            );
+          }
+
+          const title = lang === 'en'
+            ? item.achievement.title_en || findPrestasiInfoByImageUrl(item.achievement.image_url)?.title.en || t('Terjemahan judul belum tersedia.', 'English title not available yet.')
+            : item.achievement.title;
+          const fallbackInfo = findPrestasiInfoByImageUrl(item.achievement.image_url);
+          const event = lang === 'en'
+            ? item.achievement.description_en
+              || [fallbackInfo?.event.en, fallbackInfo?.detail?.en].filter(Boolean).join(' ')
+              || t('Terjemahan deskripsi belum tersedia.', 'English description not available yet.')
+            : item.achievement.description;
+          const participant = fallbackInfo
+            ? `${fallbackInfo.name.en}${fallbackInfo.grade ? ` · ${t(`Kelas ${fallbackInfo.grade}`, `Grade ${fallbackInfo.grade}`)}` : ''}`
+            : (lang === 'en' ? item.achievement.date_label_en : item.achievement.date_label) ?? undefined;
+
+          return (
+            <li key={item.key} className="min-w-0">
+              <AchievementCard
+                imageUrl={item.achievement.image_url}
+                imageAlt={title}
+                badge={t('Prestasi Siswa', 'Student Achievement')}
+                title={title}
+                event={event}
+                participant={participant}
+              />
+            </li>
+          );
+        })}
       </ul>
 
       {hasMore && (

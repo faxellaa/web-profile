@@ -171,3 +171,12 @@ export const PRESTASI_INFO: Record<string, PrestasiInfo> = {
     event: { id: 'Wushu Santa Putra 52 Kg', en: 'Wushu Sanda Boys 52 Kg' },
   },
 };
+
+export function findPrestasiInfoByImageUrl(imageUrl: string | null | undefined): PrestasiInfo | null {
+  if (!imageUrl) return null;
+  const path = imageUrl.split(/[?#]/, 1)[0];
+  const normalizedPath = path.replace(/%20/gi, ' ').replace(/%28/gi, '(').replace(/%29/gi, ')');
+  return Object.entries(PRESTASI_INFO).find(([filename]) =>
+    path.endsWith(encodeURIComponent(filename)) || normalizedPath.endsWith(filename),
+  )?.[1] ?? null;
+}

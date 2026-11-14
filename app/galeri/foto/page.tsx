@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import PhotoGallery from '@/app/components/PhotoGallery';
+import PhotoGallery, { PhotoGalleryHeader } from '@/app/components/PhotoGallery';
 
 const IMAGE_EXT = /\.(jpe?g|png|webp|avif|gif)$/i;
 
@@ -22,17 +22,7 @@ export default function PhotoPage() {
       </div>
 
       <main className="relative mx-auto max-w-6xl px-4 pb-32 pt-32 sm:pt-40">
-        <header className="mb-10 max-w-3xl border-b border-slate-300/60 pb-7 dark:border-white/10">
-          <p className="text-xs font-bold uppercase tracking-[0.25em] text-slate-500 dark:text-slate-400">
-            Dokumentasi SMP Muhammadiyah Kembaran
-          </p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-950 dark:text-white sm:text-5xl lg:text-6xl">
-            Galeri Foto
-          </h1>
-          <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300 sm:text-base">
-            Kumpulan foto kegiatan dan suasana belajar di SMP Muhammadiyah Kembaran.
-          </p>
-        </header>
+        <PhotoGalleryHeader />
         <PhotoGallery photos={photos} />
       </main>
     </div>

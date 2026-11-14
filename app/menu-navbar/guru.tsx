@@ -4,35 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_TEACHERS, type SchoolTeacher } from '@/lib/school-content';
+import { DEFAULT_TEACHERS, translateTeacherRole, type SchoolTeacher } from '@/lib/school-content';
 
 const isStaffRole = (role: string) => /(staff|staf|tata usaha|tenaga kependidikan)/i.test(role);
 const isHead = (role: string) => /kepala sekolah/i.test(role);
 
 type Filter = 'semua' | 'guru' | 'tenaga' | 'kepala';
-
-const ROLE_WORDS: [RegExp, string][] = [
-  [/Kepala Sekolah/gi, 'Headmaster'],
-  [/Wakil Kepala/gi, 'Vice Principal'],
-  [/Tata Usaha/gi, 'Administration Staff'],
-  [/Tenaga Kependidikan/gi, 'Education Staff'],
-  [/Guru/gi, 'Teacher'],
-  [/Staf(f)?/gi, 'Staff'],
-  [/Bahasa Indonesia/gi, 'Indonesian'],
-  [/Bahasa Inggris/gi, 'English'],
-  [/Bahasa Jawa/gi, 'Javanese'],
-  [/Bahasa Arab/gi, 'Arabic'],
-  [/Matematika/gi, 'Mathematics'],
-  [/IPA/g, 'Science'],
-  [/IPS/g, 'Social Studies'],
-  [/PKn/g, 'Civics'],
-  [/Informatika/gi, 'Informatics'],
-  [/Seni Budaya/gi, 'Arts & Culture'],
-  [/Penjas|PJOK/gi, 'Physical Education'],
-  [/Ismuba/gi, 'Ismuba'],
-];
-
-const translateRole = (role: string) => ROLE_WORDS.reduce((text, [pattern, en]) => text.replace(pattern, en), role);
 
 const FILTERS: { key: Filter; label: string; en: string }[] = [
   { key: 'semua', label: 'Semua', en: 'All' },
@@ -41,9 +18,9 @@ const FILTERS: { key: Filter; label: string; en: string }[] = [
   { key: 'tenaga', label: 'Tenaga Kependidikan', en: 'Education Staff' },
 ];
 
-function Avatar({ person, className = '' }: { person: SchoolTeacher; className?: string }) {
+function Avatar({ person, photoLabel, className = '' }: { person: SchoolTeacher; photoLabel: string; className?: string }) {
   return person.photo_url ? (
-    <img src={person.photo_url} alt={`Foto ${person.name}`} className={`h-full w-full object-cover object-top ${className}`} />
+    <img src={person.photo_url} alt={`${photoLabel} ${person.name}`} className={`h-full w-full object-cover object-top ${className}`} />
   ) : (
     <div className="flex h-full w-full items-center justify-center bg-linear-to-br from-sky-200/70 via-white to-violet-200/60 text-7xl font-black text-slate-500 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-slate-400">
       {person.name.charAt(0)}
@@ -66,9 +43,9 @@ function PersonCard({ person, index, active, onToggle }: { person: SchoolTeacher
       }`}
     >
       <div className="relative aspect-[4/5] overflow-hidden bg-slate-200 dark:bg-slate-900">
-        <Avatar person={person} />
+        <Avatar person={person} photoLabel={lang === 'en' ? 'Photo of' : 'Foto'} />
                 <span className="absolute left-3 top-3 border border-white/70 bg-white/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-800 backdrop-blur-md dark:border-white/10 dark:bg-slate-950/80 dark:text-slate-200">
-          {lang === 'en' ? translateRole(person.role) : person.role}
+          {lang === 'en' ? translateTeacherRole(person.role) : person.role}
         </span>
         <div className="absolute inset-x-0 bottom-0 bg-white/85 p-4 text-slate-950 backdrop-blur-md dark:bg-slate-950/85 dark:text-white">
           <h3 className="text-base font-black leading-tight sm:text-lg">{person.name}</h3>

@@ -4,17 +4,19 @@ import { useEffect, useState } from 'react';
 import { Building2 } from 'lucide-react';
 import { useLang } from '@/lib/i18n';
 import { supabase } from '@/lib/supabase';
-import { DEFAULT_FACILITIES, mergeDefaultFacilities } from '@/lib/school-content';
+import { DEFAULT_FACILITIES, findDefaultFacilityTranslation, mergeDefaultFacilities } from '@/lib/school-content';
 
 type Facility = {
   id: string;
   name: string;
   description: string;
+  name_en?: string | null;
+  description_en?: string | null;
   image_url?: string | null;
 };
 
 export default function FacilitiesPage() {
-  const { t } = useLang();
+  const { lang, t } = useLang();
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -84,26 +86,36 @@ export default function FacilitiesPage() {
               </p>
             ) : (
               <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {facilities.map((facility) => (
-                  <article
-                    key={facility.id}
-                    className="group overflow-hidden border border-white/70 bg-white/45 shadow-[0_12px_36px_-26px_rgba(15,23,42,0.45)] backdrop-blur-2xl transition-colors duration-300 hover:bg-white/70 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.09]"
-                  >
-                    <div className="relative aspect-[16/10] overflow-hidden bg-slate-200 dark:bg-slate-900">
-                      {facility.image_url ? (
-                        <img src={facility.image_url} alt={facility.name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" />
-                      ) : (
-                        <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-100 via-white to-violet-100 text-sky-700 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-sky-300">
-                          <Building2 aria-hidden="true" className="h-12 w-12" strokeWidth={1.4} />
+                {facilities.map((facility) => {
+                  const defaultFacility = findDefaultFacilityTranslation(facility.name);
+                  const name = lang === 'en'
+                    ? facility.name_en || defaultFacility?.name_en || 'School facility'
+                    : facility.name;
+                  const description = lang === 'en'
+                    ? facility.description_en || defaultFacility?.description_en || 'English translation is not available yet.'
+                    : facility.description;
+
+                  return (
+                      <article
+                        key={facility.id}
+                        className="group overflow-hidden border border-white/70 bg-white/45 shadow-[0_12px_36px_-26px_rgba(15,23,42,0.45)] backdrop-blur-2xl transition-colors duration-300 hover:bg-white/70 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/[0.09]"
+                      >
+                        <div className="relative aspect-[16/10] overflow-hidden bg-slate-200 dark:bg-slate-900">
+                          {facility.image_url ? (
+                            <img src={facility.image_url} alt={name} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]" loading="lazy" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center bg-linear-to-br from-sky-100 via-white to-violet-100 text-sky-700 dark:from-slate-800 dark:via-slate-900 dark:to-indigo-950 dark:text-sky-300">
+                              <Building2 aria-hidden="true" className="h-12 w-12" strokeWidth={1.4} />
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                    <div className="p-5 sm:p-6">
-                      <h2 className="text-lg font-black text-slate-950 dark:text-white">{facility.name}</h2>
-                      <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">{facility.description}</p>
-                    </div>
-                  </article>
-                ))}
+                        <div className="p-5 sm:p-6">
+                          <h2 className="text-lg font-black text-slate-950 dark:text-white">{name}</h2>
+                          <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">{description}</p>
+                        </div>
+                      </article>
+                  );
+                })}
               </div>
             )}
           </>
