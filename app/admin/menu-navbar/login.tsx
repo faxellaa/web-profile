@@ -11,8 +11,6 @@ import { ADMIN_LAST_ACTIVITY_STORAGE_KEY } from '@/lib/admin-session';
 
 export default function AdminLogin() {
   const { lang, setLang, t } = useLang();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -30,8 +28,15 @@ export default function AdminLogin() {
     setThemeWithTransition(nextDark);
   };
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email');
+    const password = formData.get('password');
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      setErrorMsg(t('Email atau kata sandi tidak dapat dibaca.', 'Email or password could not be read.'));
+      return;
+    }
     setLoading(true);
     setErrorMsg('');
 
@@ -129,31 +134,35 @@ export default function AdminLogin() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form method="post" onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+            <label htmlFor="admin-email" className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
               {t('Email Administrator', 'Administrator Email')}
             </label>
             <input
               type="email"
+              id="admin-email"
+              name="email"
+              autoComplete="username"
+              autoCapitalize="none"
+              spellCheck={false}
               required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
               placeholder={t('Masukkan email', 'Enter email')}
               className="w-full px-4 py-3 sm:py-2.5 text-base sm:text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-600 transition-colors"
             />
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
+            <label htmlFor="admin-password" className="block text-xs font-semibold text-slate-700 dark:text-slate-200 mb-1.5">
               {t('Password', 'Password')}
             </label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
+                id="admin-password"
+                name="password"
+                autoComplete="current-password"
                 required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('Masukkan password', 'Enter password')}
                 className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 pr-12 text-base text-slate-900 transition-colors placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:placeholder:text-slate-500 sm:py-2.5 sm:text-xs"
               />

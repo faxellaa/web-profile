@@ -20,44 +20,10 @@ export type AdminReport = {
   period: string;
 };
 
-const SCHOOL_NAME = 'SMP MUHAMMADIYAH KEMBARAN';
-const SCHOOL_ADDRESS = 'Jl. Masjid No.2, Kramat, Kembaran, Banyumas, Jawa Tengah 53182';
-const REPORT_GRAY: [number, number, number] = [75, 85, 99];
-
-async function loadReportLogo(): Promise<string> {
-  const response = await fetch('/img/logosmp.png');
-  if (!response.ok) throw new Error(`School logo request failed with status ${response.status}`);
-
-  const image = await createImageBitmap(await response.blob());
-  try {
-    const scale = Math.min(1, 180 / Math.max(image.width, image.height));
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(image.width * scale));
-    canvas.height = Math.max(1, Math.round(image.height * scale));
-
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('A canvas context is unavailable for the school logo.');
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-    const resizedLogo = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error('The school logo could not be resized.'));
-      }, 'image/png');
-    });
-
-    return await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === 'string') resolve(reader.result);
-        else reject(new Error('The school logo could not be encoded.'));
-      };
-      reader.onerror = () => reject(reader.error || new Error('The school logo could not be read.'));
-      reader.readAsDataURL(resizedLogo);
-    });
-  } finally {
-    image.close();
-  }
+async function loadLetterhead(): Promise<Uint8Array> {
+  const response = await fetch('/img/kop-surat-smp.jpeg');
+  if (!response.ok) throw new Error(`Letterhead request failed with status ${response.status}`);
+  return new Uint8Array(await response.arrayBuffer());
 }
 
 function cellText(cell: AdminReportCell): string {
@@ -77,40 +43,28 @@ function downloadBlob(blob: Blob, fileName: string): void {
 
 function drawLetterhead(
   doc: jsPDF,
-  logo: string,
+  letterhead: Uint8Array,
   title: string,
   period: string,
 ): void {
   const pageWidth = doc.internal.pageSize.getWidth();
-  doc.addImage(logo, 'PNG', 34, 17, 48, 48);
+  const letterheadWidth = 700;
+  const letterheadHeight = letterheadWidth * 372 / 2049;
+  doc.addImage(letterhead, 'JPEG', (pageWidth - letterheadWidth) / 2, 16, letterheadWidth, letterheadHeight);
   doc.setTextColor(31, 41, 55);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text(SCHOOL_NAME, pageWidth / 2, 31, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text('Kramat, Kembaran, Banyumas', pageWidth / 2, 47, { align: 'center' });
-  doc.text(SCHOOL_ADDRESS, pageWidth / 2, 60, { align: 'center' });
-
-  doc.setDrawColor(...REPORT_GRAY);
-  doc.setLineWidth(1);
-  doc.line(32, 73, pageWidth - 32, 73);
-  doc.setLineWidth(0.35);
-  doc.line(32, 76, pageWidth - 32, 76);
-
-  doc.setFont('helvetica', 'bold');
   doc.setFontSize(12);
-  doc.text(title.toLocaleUpperCase('id-ID'), pageWidth / 2, 96, { align: 'center' });
+  doc.text(title.toLocaleUpperCase('id-ID'), pageWidth / 2, 163, { align: 'center' });
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(8);
-  doc.text(period, pageWidth / 2, 110, { align: 'center' });
+  doc.text(period, pageWidth / 2, 178, { align: 'center' });
 }
 
 export async function exportAdminReportToPdf(report: AdminReport): Promise<void> {
-  const [{ jsPDF }, { autoTable }, logo] = await Promise.all([
+  const [{ jsPDF }, { autoTable }, letterhead] = await Promise.all([
     import('jspdf'),
     import('jspdf-autotable'),
-    loadReportLogo(),
+    loadLetterhead(),
   ]);
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a3', compress: true });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -126,8 +80,8 @@ export async function exportAdminReportToPdf(report: AdminReport): Promise<void>
   autoTable(doc, {
     head: [report.columns.map(({ header }) => header)],
     body: report.rows.map((row) => report.columns.map((_, index) => cellText(row[index] ?? '—'))),
-    startY: 126,
-    margin: { top: 126, right: 32, bottom: 32, left: 32 },
+    startY: 193,
+    margin: { top: 193, right: 32, bottom: 32, left: 32 },
     tableWidth: contentWidth,
     theme: 'grid',
     showHead: 'everyPage',
@@ -151,7 +105,7 @@ export async function exportAdminReportToPdf(report: AdminReport): Promise<void>
     },
     alternateRowStyles: { fillColor: [243, 244, 246] },
     columnStyles,
-    willDrawPage: () => drawLetterhead(doc, logo, report.title, report.period),
+    willDrawPage: () => drawLetterhead(doc, letterhead, report.title, report.period),
     didDrawCell: (data: CellHookData) => {
       if (data.section !== 'body') return;
       const value = report.rows[data.row.index]?.[data.column.index];
